@@ -91,8 +91,7 @@ export default function PrincipalDashboard() {
   const statCards = [
     { label: "Total Siswa",       value: summary?.totalStudents ?? 0,       icon: Users,        color: "text-brand",  bg: "bg-brand/10",  trend: "Siswa Aktif" },
     { label: "Guru Aktif",        value: summary?.totalTeachers ?? 0,       icon: GraduationCap,color: "text-brand", bg: "bg-brand/10", trend: "Tenaga Pendidik" },
-    { label: "Kehadiran Sekolah", value: `${summary?.attendanceRate ?? 0}%`,icon: Activity,     color: "text-brand",  bg: "bg-brand/10",   trend: "Rata-rata Bulan Ini" },
-    { label: "Rerata Nilai",      value: summary?.averageScore ?? 0,        icon: Award,        color: "text-violet-600", bg: "bg-violet-50",  trend: "Kesehatan Akademik" },
+    { label: "Kehadiran Siswa",   value: `${summary?.attendanceRate ?? 0}%`,icon: Activity,     color: "text-brand",  bg: "bg-brand/10",   trend: "Rata-rata Bulan Ini" },
     { label: "Kehadiran Guru",    value: `${summary?.teacherAttendanceRate ?? 0}%`, icon: UserCheck, color: "text-brand", bg: "bg-brand/10", trend: "Rata-rata Bulan Ini" },
   ];
 
@@ -126,7 +125,7 @@ export default function PrincipalDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (

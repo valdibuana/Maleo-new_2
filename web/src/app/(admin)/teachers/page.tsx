@@ -210,7 +210,7 @@ Username Login: "${data.loginUsername}"
                         <Avatar name={teacher.name} size="sm" />
                         <div>
                           <p className="font-medium text-foreground">{teacher.name}</p>
-                          <p className="text-xs text-muted-foreground">{teacher.email}</p>
+                          <p className="text-xs text-muted-foreground">{teacher.phone}</p>
                         </div>
                       </div>
                     </td>
@@ -261,8 +261,8 @@ Username Login: "${data.loginUsername}"
             {nameError && <p className="text-xs text-red-500 -mt-3">{nameError}</p>}
             <Input label="NIP" placeholder="Masukkan NIP" value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} required />
             <Select label="Jenis Kelamin" options={[{value:"L",label:"Laki-laki"},{value:"P",label:"Perempuan"}]} placeholder="Pilih" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} required />
-            <Input label="Email" type="email" placeholder="email@maleo.sch.id" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
-            <Input label="Telepon" placeholder="08xxxxxxxxxx" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required />
+            <Input label="Email Kontak" type="email" placeholder="email@maleo.sch.id" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+            <Input label="Nomor Telepon (Pembeda Identitas)" placeholder="08xxxxxxxxxx" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required />
             <div className="space-y-2 col-span-1 sm:col-span-2">
               <label className="text-sm font-medium">Mata Pelajaran yang Diajar</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">

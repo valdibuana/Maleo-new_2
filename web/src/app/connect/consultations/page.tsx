@@ -239,7 +239,7 @@ export default function ConsultationsPage() {
               <option value="">Pilih Guru...</option>
               {teachers.map(t => (
                 <option key={t.userId} value={t.userId}>
-                  {t.name} — {t.subject} ({t.class})
+                  {t.name} — {t.subject} ({t.class}) {t.phone ? `• ${t.phone}` : ""}
                 </option>
               ))}
             </select>

@@ -21,4 +21,4 @@ RUN npm run build
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run db:seed && npm run start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]

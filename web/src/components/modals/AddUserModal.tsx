@@ -72,7 +72,7 @@ export const AddUserModal = ({
         />
 
         <Input
-          label="Email (Opsional untuk Siswa/Guru)"
+          label="Email Kontak (Opsional untuk Siswa/Guru)"
           type="email"
           placeholder="contoh@maleo.sch.id"
           value={formData.email}

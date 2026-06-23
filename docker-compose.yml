@@ -38,7 +38,7 @@ services:
       JWT_EXPIRES_IN: 24h
       JWT_REFRESH_SECRET: replace_with_strong_refresh_secret_for_production
       JWT_REFRESH_EXPIRES_IN: 30d
-      CLIENT_URL: http://localhost:3000
+      CLIENT_URL: https://siakad.isoc.id
       UPLOAD_DIR: ./uploads
     ports:
       - "4000:4000"
@@ -50,7 +50,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:4000/api
+        NEXT_PUBLIC_API_URL: https://maleo.isoc.id/api
     container_name: maleo-web
     restart: unless-stopped
     depends_on:
@@ -58,7 +58,7 @@ services:
     environment:
       TZ: Asia/Jakarta
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEXT_PUBLIC_API_URL: https://maleo.isoc.id/api
     ports:
       - "3000:3000"
 

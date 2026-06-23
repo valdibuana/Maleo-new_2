@@ -8,7 +8,6 @@ import {
   School,
   BookOpen,
   TrendingUp,
-  Award,
   Megaphone,
   CalendarDays,
   Loader2
@@ -162,22 +161,6 @@ export default function DashboardPage() {
               </div>
               <span className="text-xl font-bold text-brand">
                 {summary?.attendanceRate}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-brand/10 border border-brand/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand/100 rounded-lg">
-                  <Award size={16} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Nilai Rata-rata
-                  </p>
-                  <p className="text-xs text-muted-foreground">Semua mapel</p>
-                </div>
-              </div>
-              <span className="text-xl font-bold text-brand">
-                {summary?.averageScore}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-violet-50 border border-violet-100">

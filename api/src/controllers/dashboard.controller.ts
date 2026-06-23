@@ -24,24 +24,19 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       ? (presentCount / attendanceStats._count.id) * 100 
       : 0;
 
-    // 3. Grade Average
-    const gradeStats = await prisma.grade.aggregate({
-      _avg: { score: true }
-    });
-
-    // 4. Academic Year
+    // 3. Academic Year
     const activeAcademicYear = await prisma.academicYear.findFirst({
       where: { isActive: true }
     });
 
-    // 5. Recent Announcements
+    // 4. Recent Announcements
     const recentAnnouncements = await prisma.announcement.findMany({
       where: { isPublished: true },
       orderBy: { createdAt: "desc" },
       take: 4
     });
 
-    // 6. Attendance Chart — 6 bulan terakhir per bulan
+    // 5. Attendance Chart — 6 bulan terakhir per bulan
     const MONTH_NAMES_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
     const now = new Date();
     const chartData: Array<{
@@ -82,7 +77,6 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         totalClasses,
         totalSubjects,
         attendanceRate: parseFloat(attendanceRate.toFixed(1)),
-        averageScore: parseFloat((gradeStats._avg.score || 0).toFixed(1)),
         academicYear: activeAcademicYear?.name || "N/A",
         recentAnnouncements,
         attendanceChart: chartData,

@@ -31,7 +31,6 @@ router.get(
         topStudentsRaw,
         totalAttendances,
         hadirCount,
-        avgScore,
       ] = await Promise.all([
         prisma.student.count({ where: { status: "active" } }),
         prisma.teacher.count({ where: { status: "active" } }),
@@ -58,8 +57,6 @@ router.get(
         prisma.attendance.count({
           where: { date: { gte: startOfMonth }, status: "hadir" },
         }),
-        // Rata-rata nilai global
-        prisma.grade.aggregate({ _avg: { score: true } }),
       ]);
 
       // Attendance rate global
@@ -181,8 +178,6 @@ router.get(
           totalClasses,
           totalSubjects,
           attendanceRate,
-          averageScore:
-            Math.round((avgScore._avg.score || 0) * 10) / 10,
           academicYear: activeYear
             ? `${activeYear.name} - ${activeYear.semester}`
             : "-",
