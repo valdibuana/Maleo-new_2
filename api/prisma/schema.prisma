@@ -1,0 +1,689 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int        @id @default(autoincrement())
+  name                  String
+  email                 String?    @unique
+  password              String
+  role                  Role       @default(admin)
+  username              String?    @unique
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  force_change_password Boolean    @default(true)
+  guardianId            Int?       @unique @map("guardian_id")
+  nipNis                String?    @unique @map("nip_nis")
+  principalId           Int?       @unique @map("principal_id")
+  studentId             Int?       @unique @map("student_id")
+  teacherId             Int?       @unique @map("teacher_id")
+  userCode              String?    @map("user_code")
+  guardian              Guardian?  @relation(fields: [guardianId], references: [id])
+  principal             Principal? @relation(fields: [principalId], references: [id])
+  student               Student?   @relation(fields: [studentId], references: [id])
+  teacher               Teacher?   @relation(fields: [teacherId], references: [id])
+
+  @@map("users")
+  @@index([role])
+}
+
+model Student {
+  id                Int                     @id @default(autoincrement())
+  nis               String                  @unique
+  name              String
+  gender            Gender?
+  birthDate         DateTime?               @map("birth_date")
+  address           String?
+  phone             String?
+  status            Status                  @default(active)
+  deletedAt         DateTime?               @map("deleted_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  classId           Int                     @map("class_id")
+  submissions       AssignmentSubmission[]
+  attendances       Attendance[]
+  grades            Grade[]
+  atpMaterialAccess ATPMaterialAccess[]
+  classifications   StudentClassification[]
+  materialAccess    StudentMaterialAccess[]
+  class             Class                   @relation(fields: [classId], references: [id])
+  user              User?
+  guardians         Guardian[]              @relation("StudentGuardians")
+
+  @@map("students")
+  @@index([classId])
+  @@index([name])
+}
+
+model Teacher {
+  id                 Int                 @id @default(autoincrement())
+  nip                String              @unique
+  name               String
+  gender             Gender?
+  email              String              @unique
+  phone              String?
+  subject            String?
+  status             Status              @default(active)
+  deletedAt          DateTime?           @map("deleted_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  assignments        Assignment[]
+  homeroomClasses    Class[]             @relation("HomeroomTeacher")
+  contents           Content[]
+  gradeConfigs       GradeConfig[]
+  learningModules    LearningModule[]
+  atp                ATP[]
+  scheduleSlots      ScheduleSlot[]
+  schedules          Schedule[]
+  subjects           Subject[]
+  teacherAttendances TeacherAttendance[]
+  teacherSubjects    TeacherSubject[]
+  user               User?
+
+  @@map("teachers")
+  @@index([status])
+}
+
+model Principal {
+  id            Int      @id @default(autoincrement())
+  nip           String   @unique
+  name          String
+  principalCode String   @map("principal_code")
+  phone         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  address       String?
+  email         String?  @unique
+  gender        Gender?
+  status        Status   @default(active)
+  user          User?
+
+  @@map("principals")
+}
+
+model Guardian {
+  id         Int       @id @default(autoincrement())
+  name       String
+  phone      String?
+  email      String    @unique
+  address    String?
+  occupation String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  user       User?
+  students   Student[] @relation("StudentGuardians")
+
+  @@map("guardians")
+}
+
+model AcademicYear {
+  id              Int                     @id @default(autoincrement())
+  name            String
+  semester        Semester
+  startDate       DateTime                @map("start_date")
+  endDate         DateTime                @map("end_date")
+  isActive        Boolean                 @default(false) @map("is_active")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+  learningModules LearningModule[]
+  atp             ATP[]
+  scheduleSlots   ScheduleSlot[]
+  classifications StudentClassification[]
+
+  @@map("academic_years")
+}
+
+model Class {
+  id                Int              @id @default(autoincrement())
+  name              String           @unique
+  level             Int
+  homeroomTeacherId Int              @map("homeroom_teacher_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  assignments       Assignment[]
+  homeroomTeacher   Teacher          @relation("HomeroomTeacher", fields: [homeroomTeacherId], references: [id])
+  contents          Content[]
+  gradeConfigs      GradeConfig[]
+  learningModules   LearningModule[]
+  atp               ATP[]
+  schedules         Schedule[]
+  students          Student[]
+
+  @@map("classes")
+}
+
+model Subject {
+  id              Int              @id @default(autoincrement())
+  code            String           @unique
+  name            String
+  gradeLevel      Int              @map("grade_level")
+  hoursPerWeek    Int              @map("hours_per_week")
+  teacherId       Int              @map("teacher_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  assignments     Assignment[]
+  contents        Content[]
+  gradeConfigs    GradeConfig[]
+  grades          Grade[]
+  learningModules LearningModule[]
+  atp             ATP[]
+  schedules       Schedule[]
+  teacher         Teacher          @relation(fields: [teacherId], references: [id])
+  teacherSubjects TeacherSubject[]
+
+  @@map("subjects")
+  @@index([teacherId])
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  day       String
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  room      String
+  subjectId Int      @map("subject_id")
+  teacherId Int      @map("teacher_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  classId   Int      @map("class_id")
+  class     Class    @relation(fields: [classId], references: [id])
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  @@map("schedules")
+  @@index([day])
+}
+
+model ScheduleSlot {
+  id                   Int          @id @default(autoincrement())
+  classLevel           Int          @map("class_level")
+  day                  String
+  timeSlot             String       @map("time_slot")
+  jpLabel              String       @map("jp_label")
+  slotType             String       @default("academic") @map("slot_type")
+  subjectName          String?      @map("subject_name")
+  teacherName          String?      @map("teacher_name")
+  teacherId            Int?         @map("teacher_id")
+  isConfirmed          Boolean      @default(false) @map("is_confirmed")
+  confirmationDeadline DateTime?    @map("confirmation_deadline")
+  academicYearId       Int          @map("academic_year_id")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+  academicYear         AcademicYear @relation(fields: [academicYearId], references: [id])
+  teacher              Teacher?     @relation(fields: [teacherId], references: [id])
+
+  @@unique([academicYearId, classLevel, day, timeSlot])
+  @@unique([academicYearId, teacherId, day, timeSlot])
+  @@map("schedule_slots")
+}
+
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  date      DateTime
+  status    AttendanceStatus
+  note      String?
+  studentId Int              @map("student_id")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("attendances")
+  @@index([date])
+  @@index([status])
+}
+
+model Grade {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  date       DateTime
+  maxScore   Float     @map("max_score")
+  score      Float
+  studentId  Int       @map("student_id")
+  subjectId  Int       @map("subject_id")
+  type       ScoreType
+  isLocked   Boolean   @default(false) @map("is_locked")
+  lockedAt   DateTime? @map("locked_at")
+  lockedBy   Int?      @map("locked_by")
+  unlockedAt DateTime? @map("unlocked_at")
+  unlockedBy Int?      @map("unlocked_by")
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject    Subject   @relation(fields: [subjectId], references: [id])
+
+  @@map("grades")
+  @@index([date])
+  @@index([type])
+}
+
+model GradeConfig {
+  id         Int              @id @default(autoincrement())
+  teacherId  Int              @map("teacher_id")
+  subjectId  Int              @map("subject_id")
+  classId    Int              @map("class_id")
+  isLocked   Boolean          @default(false) @map("is_locked")
+  lockedAt   DateTime?        @map("locked_at")
+  lockedBy   Int?             @map("locked_by")
+  unlockedBy Int?             @map("unlocked_by")
+  unlockedAt DateTime?        @map("unlocked_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  components GradeComponent[]
+  class      Class            @relation(fields: [classId], references: [id])
+  subject    Subject          @relation(fields: [subjectId], references: [id])
+  teacher    Teacher          @relation(fields: [teacherId], references: [id])
+
+  @@unique([teacherId, subjectId, classId])
+  @@map("grade_configs")
+}
+
+model GradeComponent {
+  id            Int         @id @default(autoincrement())
+  gradeConfigId Int         @map("grade_config_id")
+  name          String
+  weight        Float
+  isDefault     Boolean     @default(true) @map("is_default")
+  order         Int         @default(0)
+  gradeConfig   GradeConfig @relation(fields: [gradeConfigId], references: [id], onDelete: Cascade)
+
+  @@map("grade_components")
+}
+
+model Announcement {
+  id          Int                  @id @default(autoincrement())
+  title       String
+  content     String
+  author      String
+  target      AnnouncementTarget   @default(all)
+  priority    AnnouncementPriority @default(normal)
+  isPublished Boolean              @default(false) @map("is_published")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  @@map("announcements")
+  @@index([isPublished])
+  @@index([createdAt])
+}
+
+model Content {
+  id        Int      @id @default(autoincrement())
+  title     String
+  type      String
+  url       String
+  teacherId Int      @map("teacher_id")
+  classId   Int      @map("class_id")
+  subjectId Int      @map("subject_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  class     Class    @relation(fields: [classId], references: [id])
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  @@map("contents")
+}
+
+model Assignment {
+  id          Int                    @id @default(autoincrement())
+  title       String
+  description String
+  dueDate     DateTime               @map("due_date")
+  teacherId   Int                    @map("teacher_id")
+  classId     Int                    @map("class_id")
+  subjectId   Int                    @map("subject_id")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+  fileType    String?                @map("file_type")
+  fileUrl     String?                @map("file_url")
+  submissions AssignmentSubmission[]
+  class       Class                  @relation(fields: [classId], references: [id])
+  subject     Subject                @relation(fields: [subjectId], references: [id])
+  teacher     Teacher                @relation(fields: [teacherId], references: [id])
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id           Int        @id @default(autoincrement())
+  assignmentId Int        @map("assignment_id")
+  studentId    Int        @map("student_id")
+  fileUrl      String?    @map("file_url")
+  fileType     String?    @map("file_type")
+  fileName     String?    @map("file_name")
+  content      String?
+  submittedAt  DateTime   @default(now()) @map("submitted_at")
+  grade        Float?
+  feedback     String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
+}
+
+model LearningModule {
+  id             Int             @id @default(autoincrement())
+  title          String
+  description    String?
+  subjectId      Int             @map("subject_id")
+  academicYearId Int             @map("academic_year_id")
+  teacherId      Int             @map("teacher_id")
+  order          Int             @default(0)
+  isPublished    Boolean         @default(false) @map("is_published")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  classId        Int?            @map("class_id")
+  academicYear   AcademicYear    @relation(fields: [academicYearId], references: [id])
+  class          Class?          @relation(fields: [classId], references: [id])
+  subject        Subject         @relation(fields: [subjectId], references: [id])
+  teacher        Teacher         @relation(fields: [teacherId], references: [id])
+  sessions       ModuleSession[]
+
+  @@map("learning_modules")
+  @@index([teacherId])
+  @@index([isPublished])
+}
+
+model ModuleSession {
+  id            Int               @id @default(autoincrement())
+  moduleId      Int               @map("module_id")
+  sessionNumber Int               @map("session_number")
+  title         String
+  isRepeatable  Boolean           @default(false) @map("is_repeatable")
+  isPublished   Boolean           @default(false) @map("is_published")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  module        LearningModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  materials     SessionMaterial[]
+
+  @@map("module_sessions")
+}
+
+model SessionMaterial {
+  id        Int                     @id @default(autoincrement())
+  sessionId Int                     @map("session_id")
+  title     String
+  type      MaterialType
+  fileUrl   String                  @map("file_url")
+  order     Int                     @default(0)
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+  session   ModuleSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  access    StudentMaterialAccess[]
+
+  @@map("session_materials")
+}
+
+model StudentMaterialAccess {
+  id         Int             @id @default(autoincrement())
+  studentId  Int             @map("student_id")
+  materialId Int             @map("material_id")
+  accessedAt DateTime        @default(now()) @map("accessed_at")
+  material   SessionMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  student    Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, materialId])
+  @@map("student_material_access")
+}
+
+model ATP {
+  id                Int          @id @default(autoincrement())
+  nomorInduk1       String       @unique @map("nomor_induk_1")
+  nomorInduk2       String       @unique @map("nomor_induk_2")
+  nomorInduk3       String       @unique @map("nomor_induk_3")
+  subjectId         Int          @map("subject_id")
+  classId           Int          @map("class_id")
+  teacherId         Int          @map("teacher_id")
+  academicYearId    Int          @map("academic_year_id")
+  totalMeetings     Int          @default(16) @map("total_meetings")
+  status            ATPStatus    @default(draft)
+  publishedAt       DateTime?    @map("published_at")
+  archivedAt        DateTime?    @map("archived_at")
+  learningObjective String?      @map("learning_objective")
+  learningStrategy  String?      @map("learning_strategy")
+  teacherNote       String?      @map("teacher_note")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  academicYear      AcademicYear @relation(fields: [academicYearId], references: [id])
+  class             Class        @relation(fields: [classId], references: [id])
+  subject           Subject      @relation(fields: [subjectId], references: [id])
+  teacher           Teacher      @relation(fields: [teacherId], references: [id])
+  meetings          ATPMeeting[]
+
+  @@unique([subjectId, classId, teacherId, academicYearId])
+  @@map("atp")
+  @@index([teacherId])
+  @@index([status])
+}
+
+model ATPMeeting {
+  id            Int           @id @default(autoincrement())
+  atpId         Int           @map("atp_id")
+  meetingNumber Int           @map("meeting_number")
+  title         String?
+  learningPath  String?       @map("learning_path")
+  learningGoal  String?       @map("learning_goal")
+  activity      String?
+  assessment    String?
+  status        MeetingStatus @default(draft)
+  publishedAt   DateTime?     @map("published_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  materials     ATPMaterial[]
+  atp           ATP           @relation(fields: [atpId], references: [id], onDelete: Cascade)
+
+  @@unique([atpId, meetingNumber])
+  @@map("atp_meetings")
+}
+
+model ATPMaterial {
+  id        Int                 @id @default(autoincrement())
+  meetingId Int                 @map("meeting_id")
+  title     String
+  type      MaterialTypeATP
+  fileUrl   String              @map("file_url")
+  fileName  String?             @map("file_name")
+  fileSize  Int?                @map("file_size")
+  mimeType  String?             @map("mime_type")
+  order     Int                 @default(0)
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  access    ATPMaterialAccess[]
+  meeting   ATPMeeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("atp_materials")
+}
+
+model ATPMaterialAccess {
+  id         Int         @id @default(autoincrement())
+  studentId  Int         @map("student_id")
+  materialId Int         @map("material_id")
+  accessedAt DateTime    @default(now()) @map("accessed_at")
+  material   ATPMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, materialId])
+  @@map("atp_material_access")
+}
+
+model TeacherSubject {
+  id        Int     @id @default(autoincrement())
+  teacherId Int     @map("teacher_id")
+  subjectId Int     @map("subject_id")
+  isPrimary Boolean @default(false) @map("is_primary")
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@map("teacher_subjects")
+}
+
+model TeacherAttendance {
+  id             Int                 @id @default(autoincrement())
+  teacherId      Int                 @map("teacher_id")
+  date           DateTime
+  status         TeacherAttendStatus
+  checkinAt      DateTime?           @map("checkin_at")
+  checkinType    CheckinType         @default(self) @map("checkin_type")
+  note           String?
+  isLate         Boolean             @default(false) @map("is_late")
+  lateMinutes    Int?                @map("late_minutes")
+  overriddenBy   Int?                @map("overridden_by")
+  overriddenAt   DateTime?           @map("overridden_at")
+  overrideReason String?             @map("override_reason")
+  teacher        Teacher             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, date])
+  @@map("teacher_attendances")
+  @@index([date])
+}
+
+model Consultation {
+  id         Int                @id @default(autoincrement())
+  senderId   Int                @map("sender_id")
+  receiverId Int                @map("receiver_id")
+  senderRole Role               @map("sender_role")
+  subject    String
+  message    String
+  status     ConsultationStatus @default(unread)
+  parentId   Int?               @map("parent_id")
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  parent     Consultation?      @relation("ConsultationReplies", fields: [parentId], references: [id])
+  replies    Consultation[]     @relation("ConsultationReplies")
+
+  @@map("consultations")
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model StudentClassification {
+  id             Int          @id @default(autoincrement())
+  studentId      Int          @map("student_id")
+  semester       Int
+  academicYearId Int          @map("academic_year_id")
+  pathType       PathType     @map("path_type")
+  topInterest    String       @map("top_interest")
+  analysisData   Json         @map("analysis_data")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, academicYearId, semester])
+  @@map("student_classifications")
+}
+
+enum Role {
+  admin
+  kepala_sekolah
+  teacher
+  student
+  guardian
+}
+
+enum Gender {
+  L
+  P
+}
+
+enum Semester {
+  Ganjil
+  Genap
+}
+
+enum PathType {
+  AKADEMIK
+  VOKASI
+}
+
+enum AttendanceStatus {
+  hadir
+  izin
+  sakit
+  alpa
+}
+
+enum TeacherAttendStatus {
+  hadir
+  terlambat
+  izin
+  sakit
+  alpa
+}
+
+enum CheckinType {
+  self
+  admin_override
+}
+
+enum ScoreType {
+  Tugas
+  PSTS
+  PSAS
+  Kuis
+}
+
+enum AnnouncementTarget {
+  all
+  teacher
+  student
+  guardian
+}
+
+enum AnnouncementPriority {
+  normal
+  important
+  urgent
+}
+
+enum Status {
+  active
+  inactive
+}
+
+enum MaterialType {
+  pdf
+  ppt
+  video
+  pptx
+  doc
+  docx
+  image
+  link
+}
+
+enum ATPStatus {
+  draft
+  published
+  archived
+}
+
+enum MeetingStatus {
+  draft
+  published
+  archived
+}
+
+enum MaterialTypeATP {
+  pdf
+  ppt
+  pptx
+  docx
+  video_link
+  zip
+  image
+  link
+}
+
+enum ConsultationStatus {
+  unread
+  read
+  replied
+}

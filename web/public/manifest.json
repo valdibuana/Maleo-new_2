@@ -1,0 +1,23 @@
+{
+  "name": "Maleo SIAKAD - Sistem Informasi Akademik",
+  "short_name": "SIAKAD",
+  "description": "Sistem Informasi Akademik Sekolah - Kelola data siswa, guru, jadwal, kehadiran, dan nilai secara digital.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0e7490",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-maleo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/logo-maleo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ],
+  "categories": ["education"]
+}

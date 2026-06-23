@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;      /* #F8FAFC (Slate 50) */
+    --foreground: 222.2 84% 4.9%;     /* Slate 950 */
+
+    --card: 0 0% 100%;              /* White */
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 203 83% 47%;         /* #1591DC (Sky-Ocean Blue) */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;     /* Slate 100 */
+    --secondary-foreground: 222.2 47.4% 11.2%; /* Slate 900 */
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%; /* Slate 500 */
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;     /* Red 500 */
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 71% 45%;           /* Emerald 500 */
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 92% 50%;            /* Amber 500 */
+    --warning-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;      /* Slate 200 */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 242 75% 60%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Custom Animations */
+  .animate-in {
+    animation-duration: 200ms;
+    animation-fill-mode: forwards;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in {
+    animation-name: fade-in;
+  }
+
+  .zoom-in {
+    animation-name: zoom-in;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes zoom-in {
+    from { transform: scale(0.95); }
+    to { transform: scale(1); }
+  }
+}
+
+/* Hide browser's default password reveal button */
+@layer base {
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
+}

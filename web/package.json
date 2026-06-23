@@ -1,0 +1,43 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@serwist/next": "^9.5.11",
+    "@tanstack/react-query": "^5.100.9",
+    "@tanstack/react-table": "^8.21.3",
+    "axios": "^1.15.1",
+    "clsx": "^2.1.1",
+    "file-saver": "^2.0.5",
+    "idb": "^8.0.3",
+    "js-cookie": "^3.0.5",
+    "lucide-react": "^1.8.0",
+    "next": "14.2.15",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.75.0",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.8.1",
+    "serwist": "^9.5.11",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.15",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}

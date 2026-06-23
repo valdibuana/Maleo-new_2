@@ -1,0 +1,74 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# local tool folders
+/.qoder/
+/.kiro/
+/.vscode/
+
+#environment
+.env
+.env.local
+.env.production
+
+# dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# Serwist PWA (auto-generated)
+/web/public/sw.js
+/web/public/sw.js.map
+/web/public/workbox-*.js
+/web/public/workbox-*.js.map
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Dev documentation (not tracked in production)
+/docs/BUG_FIX_*.md
+/docs/DATE_FORMAT_*.md
+/docs/DEPLOYMENT_STATUS_*.md
+/docs/EXPORT_*.md
+/docs/FEATURE_*.md
+/docs/FIX_SUMMARY_*.md
+/docs/IMPLEMENTATION_SUMMARY_*.md
+/docs/LAPORAN_*.md
+/docs/LOGIN_UI_*.md
+/docs/MANUAL_TESTING_*.md
+/docs/PROGRESS_REPORT_*.md
+/docs/PROJECT_STATUS_*.md
+/docs/TASK_*.md
+/docs/USERNAME_LOGIN_*.md
+
+# API scratch files (dev utilities)
+/api/scratch/
+
+# Test exploration files
+/api/tests/*.md

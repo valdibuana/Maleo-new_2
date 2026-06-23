@@ -1,0 +1,1 @@
+{"version":3,"file":"principal-guard.d.ts","sourceRoot":"","sources":["../../../src/middleware/principal-guard.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AACjD,OAAO,EAAE,WAAW,EAAE,MAAM,QAAQ,CAAC;AAErC;;;GAGG;AACH,eAAO,MAAM,qBAAqB,GAChC,KAAK,WAAW,EAChB,KAAK,QAAQ,EACb,MAAM,YAAY,mDA2BnB,CAAC"}
