@@ -403,7 +403,7 @@ router.get("/teachers", async (req, res) => {
                     teacherMap.set(teacherId, {
                         id: schedule.teacher.id,
                         name: schedule.teacher.name,
-                        email: schedule.teacher.email,
+                        phone: schedule.teacher.phone,
                         userId: schedule.teacher.user?.id,
                         subject: schedule.subject.name,
                         class: schedule.class.name,

@@ -9,6 +9,35 @@ interface ProvidersProps {
   children: ReactNode;
 }
 
+/**
+ * Runs the offline sync queue once at the app level.
+ * Processes queued mutations when connection is restored.
+ * MOVED OUTSIDE Providers to prevent recreation on every render.
+ */
+function SyncQueueRunner() {
+  useSyncQueue();
+  return null;
+}
+
+/**
+ * Reads the user role from localStorage and prefetches critical data.
+ * MOVED OUTSIDE Providers to prevent recreation on every render.
+ */
+function PrefetchRunner() {
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setRole(parsed.role || null);
+      }
+    } catch {}
+  }, []);
+  usePrefetch(role);
+  return null;
+}
+
 export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(
     () =>
@@ -39,31 +68,4 @@ export function Providers({ children }: ProvidersProps) {
       {children}
     </QueryClientProvider>
   );
-}
-
-/**
- * Runs the offline sync queue once at the app level.
- * Processes queued mutations when connection is restored.
- */
-function SyncQueueRunner() {
-  useSyncQueue();
-  return null;
-}
-
-/**
- * Reads the user role from localStorage and prefetches critical data.
- */
-function PrefetchRunner() {
-  const [role, setRole] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setRole(parsed.role || null);
-      }
-    } catch {}
-  }, []);
-  usePrefetch(role);
-  return null;
 }

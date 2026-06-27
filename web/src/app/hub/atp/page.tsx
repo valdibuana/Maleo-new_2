@@ -322,9 +322,7 @@ export default function AtpPage() {
       const formData = new FormData();
       formData.append("excel", importFile);
 
-      const res = await api.post(`/atp/${selectedAtpIdForImport}/import-excel`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      const res = await api.post(`/atp/${selectedAtpIdForImport}/import-excel`, formData);
 
       if (res.data?.success) {
         toast.success(res.data.message || "Import file Excel berhasil!");
@@ -820,17 +818,42 @@ export default function AtpPage() {
                 <h3 className="font-extrabold text-teal-950 text-base tracking-tight font-bold">Target Kelas</h3>
                 <p className="text-xs text-muted-foreground">Pilih kelas yang akan dikaitkan dengan rencana ini.</p>
               </div>
-              <Select
-                id="wizardClass"
-                name="wizardClass"
-                placeholder="Pilih Kelas"
-                value={wizardForm.classId}
-                onChange={(e) => setWizardForm({ ...wizardForm, classId: e.target.value })}
-                options={classes.map(c => ({
-                  value: c.id.toString(),
-                  label: `Kelas ${c.name} (Tingkat ${c.level})`
-                }))}
-              />
+              {(() => {
+                // Filter kelas berdasarkan grade level dari subject yang dipilih
+                const selectedSubject = mySubjects.find(s => s.id.toString() === wizardForm.subjectId);
+                const targetGradeLevel = selectedSubject?.gradeLevel;
+                const filteredClasses = targetGradeLevel
+                  ? classes.filter(c => c.level === targetGradeLevel)
+                  : classes;
+                return (
+                  <Select
+                    id="wizardClass"
+                    name="wizardClass"
+                    placeholder={filteredClasses.length === 0
+                      ? `Tidak ada kelas tingkat ${targetGradeLevel} tersedia`
+                      : "Pilih Kelas"}
+                    value={wizardForm.classId}
+                    onChange={(e) => setWizardForm({ ...wizardForm, classId: e.target.value })}
+                    options={filteredClasses.map(c => ({
+                      value: c.id.toString(),
+                      label: `Kelas ${c.name} (Tingkat ${c.level})`
+                    }))}
+                  />
+                );
+              })()}
+              {(() => {
+                const selectedSubject = mySubjects.find(s => s.id.toString() === wizardForm.subjectId);
+                const targetGradeLevel = selectedSubject?.gradeLevel;
+                const filteredClasses = targetGradeLevel
+                  ? classes.filter(c => c.level === targetGradeLevel)
+                  : classes;
+                return filteredClasses.length === 0 && targetGradeLevel ? (
+                  <p className="text-xs text-amber-600 italic bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    ⚠️ Mata pelajaran ini untuk tingkat {targetGradeLevel}, namun tidak ada kelas dengan tingkat {targetGradeLevel} di sistem. 
+                    Silakan hubungi admin untuk menambahkan kelas.
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
 

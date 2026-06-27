@@ -120,7 +120,13 @@ export function Topbar() {
                   Profil Saya
                 </button>
               )}
-              <button className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors">
+              <button 
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  router.push("/settings/profile");
+                }}
+                className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+              >
                 <Settings size={16} className="text-muted-foreground" />
                 Pengaturan
               </button>

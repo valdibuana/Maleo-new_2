@@ -46,7 +46,7 @@ export const getClasses = async (req: AuthRequest, res: Response) => {
       include: { 
         homeroomClasses: { select: { id: true, name: true, level: true } },
         schedules: { select: { class: { select: { id: true, name: true, level: true } } }, distinct: ['classId'] },
-        teacherSubjects: { include: { subject: { select: { gradeLevel: true } } } }
+        teacherSubjects: { include: { subject: { select: { id: true, gradeLevel: true } } } }
       }
     });
 

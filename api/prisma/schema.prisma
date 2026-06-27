@@ -58,6 +58,8 @@ model Student {
   @@map("students")
   @@index([classId])
   @@index([name])
+  @@index([deletedAt, name])
+  @@index([deletedAt, classId])
 }
 
 model Teacher {
@@ -87,6 +89,8 @@ model Teacher {
 
   @@map("teachers")
   @@index([status])
+  @@index([name])
+  @@index([status, deletedAt])
 }
 
 model Principal {
@@ -210,6 +214,7 @@ model ScheduleSlot {
   teacherName          String?      @map("teacher_name")
   teacherId            Int?         @map("teacher_id")
   isConfirmed          Boolean      @default(false) @map("is_confirmed")
+  isPublished          Boolean      @default(false) @map("is_published")
   confirmationDeadline DateTime?    @map("confirmation_deadline")
   academicYearId       Int          @map("academic_year_id")
   createdAt            DateTime     @default(now()) @map("created_at")
@@ -307,6 +312,7 @@ model Announcement {
   @@map("announcements")
   @@index([isPublished])
   @@index([createdAt])
+  @@index([isPublished, target, createdAt])
 }
 
 model Content {

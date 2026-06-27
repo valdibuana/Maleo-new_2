@@ -10,7 +10,7 @@ async function main() {
     console.log("🌱 Memulai pembersihan dan inisialisasi database (Clean State)...\n");
     // 1. Inisialisasi Akun Admin Utama
     const adminEmail = "admin@maleo.sch.id";
-    const adminPassword = await bcryptjs_1.default.hash("MaleoAdmin2026!", 10);
+    const adminPassword = await bcryptjs_1.default.hash("password", 10);
     const admin = await prisma.user.upsert({
         where: { email: adminEmail },
         update: {
@@ -25,6 +25,35 @@ async function main() {
         },
     });
     console.log(`✅ Admin siap: ${admin.email}`);
+    // 1b. Inisialisasi Akun Kepala Sekolah
+    const principalEmail = "kepala@maleo.sch.id";
+    const principalPassword = await bcryptjs_1.default.hash("password", 10);
+    const principal = await prisma.principal.upsert({
+        where: { nip: "196503151989031001" },
+        update: {},
+        create: {
+            nip: "196503151989031001",
+            name: "Kepala Sekolah Maleo",
+            email: principalEmail,
+            principalCode: "KS001",
+            status: "active",
+        },
+    });
+    const principalUser = await prisma.user.upsert({
+        where: { email: principalEmail },
+        update: {
+            password: principalPassword,
+        },
+        create: {
+            name: "Kepala Sekolah Maleo",
+            email: principalEmail,
+            password: principalPassword,
+            role: "kepala_sekolah",
+            force_change_password: false,
+            principalId: principal.id,
+        },
+    });
+    console.log(`✅ Kepala Sekolah siap: ${principalUser.email}`);
     // 2. Inisialisasi Tahun Ajaran Aktif
     const yearName = "2025/2026";
     const semester = "Ganjil";
@@ -60,7 +89,7 @@ async function main() {
             create: {
                 name: "Wakil Kepala Kurikulum",
                 email: defaultTeacherEmail,
-                password: await bcryptjs_1.default.hash("MaleoKurikulum2026!", 10),
+                password: await bcryptjs_1.default.hash("password", 10),
                 role: "teacher",
                 force_change_password: false,
             }
@@ -102,7 +131,92 @@ async function main() {
         });
     }
     console.log("✅ Data Mata Pelajaran Default berhasil diinisialisasi");
-    console.log("\n🎉 Database berhasil dibersihkan! Anda sekarang bisa mulai menginput data asli dari frontend.");
+    // 4. Inisialisasi Akun Siswa Test
+    const studentEmail = "siswa@maleo.sch.id";
+    const studentPassword = await bcryptjs_1.default.hash("password", 10);
+    const studentUser = await prisma.user.upsert({
+        where: { email: studentEmail },
+        update: {
+            password: studentPassword,
+        },
+        create: {
+            name: "Siswa Test",
+            email: studentEmail,
+            password: studentPassword,
+            role: "student",
+            force_change_password: false,
+            nipNis: "TEST001", // NIS untuk siswa
+        },
+    });
+    // Buat class terlebih dahulu jika belum ada
+    let testClass = await prisma.class.findFirst({
+        where: { name: "7A" }
+    });
+    if (!testClass) {
+        testClass = await prisma.class.create({
+            data: {
+                name: "7A",
+                level: 7,
+                homeroomTeacherId: defaultTeacher.id,
+            }
+        });
+    }
+    const student = await prisma.student.upsert({
+        where: { nis: "TEST001" },
+        update: {},
+        create: {
+            nis: "TEST001",
+            name: "Siswa Test",
+            classId: testClass.id,
+            status: "active",
+        },
+    });
+    await prisma.user.update({
+        where: { id: studentUser.id },
+        data: { studentId: student.id },
+    });
+    console.log(`✅ Siswa Test siap: ${student.nis}`);
+    // 5. Inisialisasi Akun Wali Murid Test
+    const guardianEmail = "wali@maleo.sch.id";
+    const guardianPassword = await bcryptjs_1.default.hash("password", 10);
+    const guardian = await prisma.guardian.upsert({
+        where: { email: guardianEmail },
+        update: {},
+        create: {
+            name: "Wali Murid Test",
+            email: guardianEmail,
+        },
+    });
+    const guardianUser = await prisma.user.upsert({
+        where: { email: guardianEmail },
+        update: {
+            password: guardianPassword,
+        },
+        create: {
+            name: "Wali Murid Test",
+            email: guardianEmail,
+            password: guardianPassword,
+            role: "guardian",
+            force_change_password: false,
+            guardianId: guardian.id,
+        },
+    });
+    // Link guardian ke siswa
+    await prisma.guardian.update({
+        where: { id: guardian.id },
+        data: {
+            students: {
+                connect: [{ id: student.id }]
+            }
+        }
+    });
+    console.log(`✅ Wali Murid Test siap: ${guardianUser.email}`);
+    console.log("\n🎉 Database berhasil dibersihkan! Akun test tersedia:");
+    console.log("   Admin:         admin@maleo.sch.id / password");
+    console.log("   Kepala Sekolah: kepala@maleo.sch.id / password");
+    console.log("   Guru:          kurikulum@maleo.sch.id / password");
+    console.log("   Siswa:         siswa@maleo.sch.id / password (NIS: TEST001)");
+    console.log("   Wali Murid:    wali@maleo.sch.id / password");
 }
 main()
     .then(async () => {

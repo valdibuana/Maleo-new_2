@@ -35,12 +35,30 @@ export default function TeacherAttendancesPage() {
     }
   };
 
-  const handleExport = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-    window.open(
-      `${apiUrl}/teacher-attendances/export?month=${selectedMonth}&year=${selectedYear}`,
-      '_blank'
-    );
+  const handleExport = async () => {
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+      const res = await fetch(`${apiUrl}/teacher-attendances/export?month=${selectedMonth}&year=${selectedYear}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error("Gagal export data");
+      
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Rekap_Kehadiran_Guru_${selectedYear}_${selectedMonth}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Gagal export data kehadiran guru.");
+    }
   };
 
 

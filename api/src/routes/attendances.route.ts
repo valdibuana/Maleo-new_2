@@ -31,7 +31,7 @@ const bulkSchema = z.object({
 });
 
 // GET /api/attendances/by-class
-router.get("/by-class", verifyJWT, async (req: Request, res: Response) => {
+router.get("/by-class", verifyJWT, async (req: AuthRequest, res: Response) => {
   try {
     const { classId, date } = req.query;
     if (!classId || !date) {
@@ -40,6 +40,32 @@ router.get("/by-class", verifyJWT, async (req: Request, res: Response) => {
     }
 
     const cId = Number(classId);
+    const { role } = req.user!;
+
+    // Teacher: only allow classes they actually teach OR are homeroom teacher
+    if (role === "teacher") {
+      const teacher = await prisma.teacher.findFirst({
+        where: { user: { id: req.user!.id } },
+        include: { homeroomClasses: { select: { id: true } } }
+      });
+
+      if (!teacher) {
+        return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan." });
+      }
+
+      // Check if teacher has the class in their schedule OR is homeroom teacher
+      const [scheduleMatch, isHomeroom] = await Promise.all([
+        prisma.schedule.findFirst({ where: { teacherId: teacher.id, classId: cId }, select: { id: true } }),
+        Promise.resolve(teacher.homeroomClasses.some(c => c.id === cId))
+      ]);
+
+      if (!scheduleMatch && !isHomeroom) {
+        return res.status(403).json({
+          success: false,
+          message: "Akses ditolak. Anda hanya dapat mengakses absensi kelas yang Anda ajar atau yang Anda wali."
+        });
+      }
+    }
     const targetDate = new Date(String(date));
     targetDate.setHours(0, 0, 0, 0);
 
@@ -85,14 +111,39 @@ router.post(
   verifyJWT,
   checkRole("admin", "teacher"),
   validate(bulkSchema),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { classId, date, records } = req.body as z.infer<typeof bulkSchema>;
-      
+      const { role } = req.user!;
+
       const targetDate = new Date(date);
       targetDate.setHours(0, 0, 0, 0);
       const nextDay = new Date(targetDate);
       nextDay.setDate(targetDate.getDate() + 1);
+
+      // Teacher: only allow saving attendance for their own classes
+      if (role === "teacher") {
+        const teacher = await prisma.teacher.findFirst({
+          where: { user: { id: req.user!.id } },
+          include: { homeroomClasses: { select: { id: true } } }
+        });
+
+        if (!teacher) {
+          return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan." });
+        }
+
+        const [scheduleMatch, isHomeroom] = await Promise.all([
+          prisma.schedule.findFirst({ where: { teacherId: teacher.id, classId }, select: { id: true } }),
+          Promise.resolve(teacher.homeroomClasses.some(c => c.id === classId))
+        ]);
+
+        if (!scheduleMatch && !isHomeroom) {
+          return res.status(403).json({
+            success: false,
+            message: "Akses ditolak. Anda hanya dapat menyimpan absensi untuk kelas yang Anda ajar atau yang Anda wali."
+          });
+        }
+      }
 
       // Cek apakah data kehadiran sudah pernah diinput untuk tanggal dan kelas ini
       const existingRecord = await prisma.attendance.findFirst({

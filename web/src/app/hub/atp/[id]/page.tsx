@@ -253,9 +253,7 @@ export default function AtpDetailPage() {
         fd.append("title", materialForm.title);
         fd.append("order", materialForm.order.toString());
 
-        await api.post(`/atp/${id}/meetings/${selectedMeeting.id}/materials/upload`, fd, {
-          headers: { "Content-Type": "multipart/form-data" }
-        });
+        await api.post(`/atp/${id}/meetings/${selectedMeeting.id}/materials/upload`, fd);
       }
 
       toast.success("Materi berhasil ditambahkan ke pertemuan.");

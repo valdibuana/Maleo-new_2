@@ -16,6 +16,8 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+const isDev = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
@@ -36,21 +38,26 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // API GET responses: Network first, 5-minute cache fallback
-    {
-      matcher: /^https?:\/\/.*\/api\/.*$/i,
-      handler: new NetworkFirst({
-        cacheName: "api-cache",
-        networkTimeoutSeconds: 10,
-        plugins: [
-          new CacheableResponsePlugin({ statuses: [0, 200] }),
-          new ExpirationPlugin({
-            maxEntries: 100,
-            maxAgeSeconds: 5 * 60, // 5 minutes
-          }),
-        ],
-      }),
-    },
+    // In development, do not cache API requests to avoid stale/no-response errors.
+    // In production, use NetworkFirst with short cache TTL.
+    ...(isDev
+      ? []
+      : [
+          {
+            matcher: /^https?:\/\/.*\/api\/.*$/i,
+            handler: new NetworkFirst({
+              cacheName: "api-cache",
+              networkTimeoutSeconds: 10,
+              plugins: [
+                new CacheableResponsePlugin({ statuses: [0, 200] }),
+                new ExpirationPlugin({
+                  maxEntries: 100,
+                  maxAgeSeconds: 5 * 60, // 5 minutes
+                }),
+              ],
+            }),
+          },
+        ]),
     // Navigation (page loads): Network first with offline fallback
     {
       matcher: ({ request }) => request.mode === "navigate",

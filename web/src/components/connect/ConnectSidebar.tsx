@@ -15,6 +15,7 @@ import {
   ChevronRight,
   MessageCircle,
   TrendingUp,
+  UserCircle,
 } from "lucide-react";
 
 const menuItems = [
@@ -31,7 +32,7 @@ const menuItems = [
       { name: "Nilai", href: "/connect/grades", icon: Award },
       { name: "Kehadiran", href: "/connect/attendances", icon: ClipboardCheck },
       { name: "Tugas", href: "/connect/tasks", icon: ClipboardList },
-      { name: "Capaian Rumpun Ilmu", href: "/connect/analytics", icon: TrendingUp },
+      { name: "Analisis Minat Belajar", href: "/connect/analytics", icon: TrendingUp },
     ],
   },
   {
@@ -39,6 +40,7 @@ const menuItems = [
     items: [
       { name: "Konsultasi ke Guru", href: "/connect/consultations", icon: MessageCircle },
       { name: "Pengumuman", href: "/connect/announcements", icon: Megaphone },
+      { name: "Profil Saya", href: "/settings/profile", icon: UserCircle },
     ],
   },
 ];

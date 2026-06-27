@@ -121,13 +121,10 @@ export default function TeachersPage() {
         const response = await apiService.create("/teachers", formData);
         const data = response.data;
         
-        // Tampilkan info username untuk login
         setSuccess(
-          `✅ ${data.name} ${data.disambiguationHint ? `(${data.disambiguationHint})` : ''} berhasil ditambahkan!
-          
-Username Login: "${data.loginUsername}"
-
-⚠️ Catat dan informasikan username ini secara langsung, karena ini yang akan dipakai untuk login pertama kali.`
+          `✅ ${data.name} berhasil ditambahkan. ` +
+          `Login: "${data.loginUsername}" | ` +
+          `${data.disambiguationHint}`
         );
       }
       await fetchData();
@@ -210,7 +207,11 @@ Username Login: "${data.loginUsername}"
                         <Avatar name={teacher.name} size="sm" />
                         <div>
                           <p className="font-medium text-foreground">{teacher.name}</p>
-                          <p className="text-xs text-muted-foreground">{teacher.phone}</p>
+                          <p className="text-xs text-muted-foreground">
+                             {teacher.phone
+                               ? `📱 ${teacher.phone}`
+                               : `NIP: ${teacher.nip}`}
+                          </p>
                         </div>
                       </div>
                     </td>

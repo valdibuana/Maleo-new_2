@@ -111,13 +111,16 @@ router.post("/", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), (0, validate_
             });
             return { teacher, username, userCode, subject };
         });
+        const hintTeacher = result.teacher.phone
+            ? `HP: ${result.teacher.phone}`
+            : `NIP: ${result.teacher.nip}`;
         res.status(201).json({
             success: true,
-            message: `Guru berhasil ditambahkan. Akun login otomatis dibuat dengan Password: ${defaultPassword}`,
+            message: `Guru ${result.teacher.name} berhasil ditambahkan. ${hintTeacher}. Akun login otomatis dibuat dengan Password: ${defaultPassword}`,
             data: {
                 ...result.teacher,
                 loginUsername: result.username,
-                disambiguationHint: result.subject || result.userCode
+                disambiguationHint: hintTeacher
             }
         });
     }

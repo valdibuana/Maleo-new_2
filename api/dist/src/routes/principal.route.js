@@ -12,7 +12,7 @@ const router = (0, express_1.Router)();
 router.get("/summary", auth_1.verifyJWT, (0, role_1.checkRole)("kepala_sekolah", "admin"), async (req, res) => {
     try {
         const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-        const [totalStudents, totalTeachers, totalClasses, totalSubjects, activeYear, recentAnnouncements, topStudentsRaw, totalAttendances, hadirCount, avgScore,] = await Promise.all([
+        const [totalStudents, totalTeachers, totalClasses, totalSubjects, activeYear, recentAnnouncements, topStudentsRaw, totalAttendances, hadirCount,] = await Promise.all([
             prisma_1.prisma.student.count({ where: { status: "active" } }),
             prisma_1.prisma.teacher.count({ where: { status: "active" } }),
             prisma_1.prisma.class.count(),
@@ -38,8 +38,6 @@ router.get("/summary", auth_1.verifyJWT, (0, role_1.checkRole)("kepala_sekolah",
             prisma_1.prisma.attendance.count({
                 where: { date: { gte: startOfMonth }, status: "hadir" },
             }),
-            // Rata-rata nilai global
-            prisma_1.prisma.grade.aggregate({ _avg: { score: true } }),
         ]);
         // Attendance rate global
         const attendanceRate = totalAttendances > 0
@@ -136,7 +134,6 @@ router.get("/summary", auth_1.verifyJWT, (0, role_1.checkRole)("kepala_sekolah",
                 totalClasses,
                 totalSubjects,
                 attendanceRate,
-                averageScore: Math.round((avgScore._avg.score || 0) * 10) / 10,
                 academicYear: activeYear
                     ? `${activeYear.name} - ${activeYear.semester}`
                     : "-",

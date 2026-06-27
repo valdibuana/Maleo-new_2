@@ -63,7 +63,6 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(logger_1.requestLogger); // Request logging for audit trail
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: { policy: "cross-origin" } })); // Security headers
-app.use("/api", rate_limit_1.apiLimiter); // Global rate limit on all API routes
 // CORS — support comma-separated list of allowed origins
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
     .split(",")
@@ -80,6 +79,7 @@ app.use((0, cors_1.default)({
     },
     credentials: true,
 }));
+app.use("/api", rate_limit_1.apiLimiter); // Global rate limit on all API routes
 app.use(express_1.default.json());
 app.use((0, compression_1.default)()); // Gzip/Brotli response compression (~70% smaller payloads)
 app.use(sanitize_1.sanitizeBody); // Input sanitization (XSS prevention)

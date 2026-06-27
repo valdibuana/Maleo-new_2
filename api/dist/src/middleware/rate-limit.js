@@ -11,7 +11,7 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
  */
 exports.apiLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: {

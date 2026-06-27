@@ -37,7 +37,7 @@ const menuItemsTeacher = [
   {
     label: "Pembelajaran",
     items: [
-      { name: "ATP Modul", href: "/hub/atp", icon: BookOpen },
+      { name: "Modul Pembelajaran (ATP)", href: "/hub/atp", icon: BookOpen },
       { name: "Tugas", href: "/hub/assignments", icon: ClipboardList },
       { name: "Nilai Siswa", href: "/hub/grades", icon: Award },
     ],
@@ -73,7 +73,7 @@ const menuItemsStudent = [
       { name: "Nilai", href: "/hub/grades", icon: Award },
       { name: "Kehadiran", href: "/hub/attendance", icon: ClipboardCheck },
       { name: "Jadwal", href: "/hub/schedules", icon: Clock },
-      { name: "Capaian Rumpun Ilmu", href: "/hub/analytics", icon: BarChart3 },
+      { name: "Analisis Minat Belajar", href: "/hub/analytics", icon: BarChart3 },
     ],
   },
   {

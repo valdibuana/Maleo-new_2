@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const path_1 = __importDefault(require("path"));
+const client_1 = require("@prisma/client");
 const prisma_1 = require("../lib/prisma");
 const auth_1 = require("../middleware/auth");
 const multer_1 = require("../lib/multer");
@@ -17,23 +18,46 @@ const identityGuard = async (req, res, next) => {
     try {
         const user = await prisma_1.prisma.user.findUnique({
             where: { id: req.user?.id },
-            select: { nipNis: true, role: true }
+            select: { nipNis: true, role: true, teacherId: true, studentId: true }
         });
-        if (!user || !user.nipNis) {
-            return res.status(404).json({ success: false, message: "Profil user tidak lengkap." });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Profil user tidak ditemukan." });
+        }
+        if (user.role !== "teacher" && user.role !== "student") {
+            return next();
         }
         if (user.role === "teacher") {
-            const teacher = await prisma_1.prisma.teacher.findUnique({ where: { nip: user.nipNis } });
-            if (!teacher)
-                return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan atau telah dihapus." });
-            req.teacherId = teacher.id;
+            if (user.teacherId) {
+                req.teacherId = user.teacherId;
+            }
+            else if (user.nipNis) {
+                const teacher = await prisma_1.prisma.teacher.findUnique({ where: { nip: user.nipNis } });
+                if (!teacher)
+                    return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan atau telah dihapus." });
+                req.teacherId = teacher.id;
+            }
+            else {
+                return res.status(404).json({ success: false, message: "Profil guru tidak lengkap." });
+            }
         }
         else if (user.role === "student") {
-            const student = await prisma_1.prisma.student.findUnique({ where: { nis: user.nipNis } });
-            if (!student)
-                return res.status(403).json({ success: false, message: "Profil siswa tidak ditemukan atau telah dihapus." });
-            req.studentId = student.id;
-            req.classId = student.classId;
+            if (user.studentId) {
+                const student = await prisma_1.prisma.student.findUnique({ where: { id: user.studentId } });
+                if (!student)
+                    return res.status(403).json({ success: false, message: "Profil siswa tidak ditemukan atau telah dihapus." });
+                req.studentId = student.id;
+                req.classId = student.classId;
+            }
+            else if (user.nipNis) {
+                const student = await prisma_1.prisma.student.findUnique({ where: { nis: user.nipNis } });
+                if (!student)
+                    return res.status(403).json({ success: false, message: "Profil siswa tidak ditemukan atau telah dihapus." });
+                req.studentId = student.id;
+                req.classId = student.classId;
+            }
+            else {
+                return res.status(404).json({ success: false, message: "Profil siswa tidak lengkap." });
+            }
         }
         next();
     }
@@ -61,13 +85,19 @@ router.get("/dashboard", async (req, res) => {
                     include: { class: true, subject: true },
                     orderBy: { startTime: "asc" }
                 }),
-                prisma_1.prisma.grade.aggregate({ where: { subject: { teacherId } }, _avg: { score: true } })
+                prisma_1.prisma.grade.findMany({
+                    where: { subject: { teacherId } },
+                    select: { score: true }
+                })
             ]);
+            const averageGrade = grades.length > 0
+                ? grades.reduce((sum, grade) => sum + grade.score, 0) / grades.length
+                : 0;
             stats = {
                 subjects: subjectCount,
                 activeAssignments: assignmentCount,
                 attendanceRate: 98,
-                averageGrade: grades._avg.score || 0
+                averageGrade
             };
             schedules = daySchedules;
         }
@@ -81,16 +111,22 @@ router.get("/dashboard", async (req, res) => {
                     include: { teacher: true, subject: true },
                     orderBy: { startTime: "asc" }
                 }),
-                prisma_1.prisma.grade.aggregate({ where: { studentId }, _avg: { score: true } }),
+                prisma_1.prisma.grade.findMany({
+                    where: { studentId },
+                    select: { score: true }
+                }),
                 prisma_1.prisma.attendance.findMany({ where: { studentId, date: { gte: new Date(today.getFullYear(), today.getMonth(), 1) } } })
             ]);
             const presentCount = attendances.filter(a => a.status === 'hadir').length;
             const attRate = attendances.length > 0 ? (presentCount / attendances.length) * 100 : 100;
+            const averageGrade = grades.length > 0
+                ? grades.reduce((sum, grade) => sum + grade.score, 0) / grades.length
+                : 0;
             stats = {
                 subjects: 0,
                 activeAssignments: assignmentCount,
                 attendanceRate: Math.round(attRate),
-                averageGrade: grades._avg.score || 0
+                averageGrade
             };
             schedules = daySchedules;
         }
@@ -116,13 +152,28 @@ router.get("/dashboard", async (req, res) => {
 router.get("/announcements", async (req, res) => {
     try {
         const role = req.user?.role;
+        let targets = [client_1.AnnouncementTarget.all];
+        if (role === "student") {
+            targets.push(client_1.AnnouncementTarget.student);
+        }
+        else if (role === "teacher") {
+            targets.push(client_1.AnnouncementTarget.teacher);
+        }
+        else if (role === "guardian") {
+            targets.push(client_1.AnnouncementTarget.guardian);
+        }
+        else if (["admin", "kepala_sekolah"].includes(role || "")) {
+            targets = [
+                client_1.AnnouncementTarget.all,
+                client_1.AnnouncementTarget.student,
+                client_1.AnnouncementTarget.teacher,
+                client_1.AnnouncementTarget.guardian,
+            ];
+        }
         const announcements = await prisma_1.prisma.announcement.findMany({
             where: {
                 isPublished: true,
-                OR: [
-                    { target: "all" },
-                    { target: role }
-                ]
+                target: { in: targets },
             },
             orderBy: { createdAt: "desc" },
             take: 5

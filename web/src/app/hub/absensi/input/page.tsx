@@ -80,7 +80,7 @@ export default function AttendanceInputPage() {
         setRole(parsed.role);
         
         if (parsed.role === "teacher") {
-          fetchClasses();
+          fetchTeacherClasses();
         } else if (parsed.role === "student") {
           fetchStudentHistory(parsed.id);
         }
@@ -94,14 +94,17 @@ export default function AttendanceInputPage() {
     setLoading(false);
   }, []);
 
-  const fetchClasses = async () => {
+  // Guru hanya melihat kelas yang dia ajar / wali kelas
+  const fetchTeacherClasses = async () => {
     try {
-      const response = await apiService.getAll("/classes");
+      // Gunakan endpoint yang sudah difilter: hanya kelas yang diajar guru ini
+      // (dari jadwal mengajar + wali kelas)
+      const response = await apiService.getAll("/hub/teacher-classes");
       if (response.success) {
         setClasses(response.data);
       }
     } catch (err) {
-      console.error("Failed to fetch classes", err);
+      console.error("Failed to fetch teacher classes", err);
     }
   };
 
@@ -217,7 +220,24 @@ export default function AttendanceInputPage() {
     try {
       const token = localStorage.getItem("jwt_token");
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-      window.open(`${baseUrl}/attendances/export/excel?token=${token}`);
+      
+      const res = await fetch(`${baseUrl}/attendances/export/excel`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error("Gagal export data");
+      
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Rekap_Kehadiran_Siswa_${Date.now()}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed", err);
     } finally {
@@ -272,7 +292,7 @@ export default function AttendanceInputPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {role === "teacher" 
-              ? "Catat kehadiran siswa per kelas dan tanggal" 
+              ? "Catat kehadiran siswa per kelas yang Anda ajar" 
               : "Rekap kehadiran Anda selama ini"}
           </p>
         </div>
@@ -299,7 +319,7 @@ export default function AttendanceInputPage() {
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 options={classes.map(c => ({ value: String(c.id), label: c.name }))}
-                placeholder="Pilih Kelas..."
+                placeholder={classes.length === 0 ? "Tidak ada kelas yang Anda ajar..." : "Pilih Kelas..."}
               />
               <Input
                 label="Pilih Tanggal"
@@ -309,13 +329,19 @@ export default function AttendanceInputPage() {
               />
               <Button 
                 onClick={loadStudentsForInput}
-                disabled={!selectedClass || !selectedDate || isLoadingStudents}
+                disabled={!selectedClass || !selectedDate || isLoadingStudents || classes.length === 0}
                 className="w-full"
               >
                 {isLoadingStudents ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
                 Muat Daftar Siswa
               </Button>
             </div>
+            {classes.length === 0 && (
+              <p className="text-xs text-amber-600 mt-3 flex items-center gap-1">
+                <Info size={14} />
+                Anda tidak terdaftar sebagai pengajar atau wali kelas di kelas manapun. Hubungi admin jika ini adalah kesalahan.
+              </p>
+            )}
           </Card>
 
           {/* Error / Success Banners */}

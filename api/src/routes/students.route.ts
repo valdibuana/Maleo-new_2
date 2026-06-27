@@ -15,6 +15,26 @@ import xlsx from "xlsx";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Simple in-memory cache for total counts to avoid expensive COUNT(*) queries
+const totalCountCache = new Map<string, { count: number; expiresAt: number }>();
+const CACHE_TTL_MS = 30_000; // 30 seconds
+const cacheKey = (role: string, search: string | undefined, className: string | undefined) =>
+  `students:total:${role}:${search ?? ""}:${className ?? ""}`;
+
+const getCachedTotal = (key: string): number | null => {
+  const entry = totalCountCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    totalCountCache.delete(key);
+    return null;
+  }
+  return entry.count;
+};
+
+const setCachedTotal = (key: string, count: number) => {
+  totalCountCache.set(key, { count, expiresAt: Date.now() + CACHE_TTL_MS });
+};
+
 const normalizeClassName = (value: string): string => {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 };
@@ -136,7 +156,7 @@ router.post(
         const birthDate = hasBirthDate ? parseBirthDate(birthDateRaw) : null;
 
         if (hasBirthDate && !birthDate) {
-          warnings.push(`Baris ${i + 1}: Format tanggal lahir tidak valid (${birthDateRaw}), tanggal lahir dikosongkan`);
+          warnings.push(`Baris ${i + 1}: Format tanggal lahir tidak valid (${birthDateRaw}). Gunakan format DD/MM/YYYY (contoh: 25/06/2010), tanggal lahir dikosongkan`);
           warningCount++;
         }
 
@@ -250,7 +270,7 @@ router.get("/export", verifyJWT, checkRole("admin"), async (req: Request, res: R
       }
     });
 
-    const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir", "Kelas", "Telepon", "Alamat"];
+    const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
     
     const rows = students.map((s) => {
       let birthDateStr = "-";
@@ -337,20 +357,33 @@ router.get("/", verifyJWT, async (req: AuthRequest, res: Response) => {
     const { page, limit, skip } = parsePagination(req.query as Record<string, any>);
     const fields = parseFields(req.query as Record<string, any>);
 
-    const [students, total] = await Promise.all([
-      prisma.student.findMany({
-        where,
-        include: {
-          class: { select: { id: true, name: true } },
-          guardians: isAdminOrStaff ? { select: { id: true, name: true } } : false,
-          user: isAdminOrStaff ? { select: { userCode: true } } : false,
-        },
-        orderBy: { name: "asc" },
-        skip,
-        take: limit,
-      }),
-      prisma.student.count({ where }),
-    ]);
+    // Cursor-based pagination: use last item id as cursor instead of OFFSET
+    const rawCursor = req.query.cursor as string | undefined;
+    const cursor = rawCursor ? Number(rawCursor) : undefined;
+    const isFirstPage = !rawCursor || Number.isNaN(cursor);
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        class: { select: { id: true, name: true } },
+        guardians: isAdminOrStaff ? { select: { id: true, name: true } } : false,
+        user: isAdminOrStaff ? { select: { userCode: true } } : false,
+      },
+      orderBy: { id: "asc" }, // stable cursor requires deterministic order
+      skip: isFirstPage ? undefined : 1, // skip the cursor itself
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor } } : {}),
+    });
+
+    // Total count: only compute on first page, then cache
+    const key = cacheKey(role, search as string | undefined, className as string | undefined);
+    let total: number;
+    if (isFirstPage) {
+      total = await prisma.student.count({ where });
+      setCachedTotal(key, total);
+    } else {
+      total = getCachedTotal(key) ?? 0;
+    }
 
     const result = students.map((s) => ({
       id: s.id,
@@ -446,10 +479,17 @@ router.post(
         return { student };
       });
 
+      const hintStudent = result.student.phone
+        ? `HP: ${result.student.phone}`
+        : `NIS: ${result.student.nis}`;
+
       res.status(201).json({ 
         success: true, 
-        message: `Siswa berhasil ditambahkan. Akun login otomatis dibuat dengan Password: ${defaultPassword}`, 
-        data: result.student 
+        message: `Siswa ${result.student.name} berhasil ditambahkan. ${hintStudent}. Akun login otomatis dibuat dengan Password: ${defaultPassword}`, 
+        data: {
+          ...result.student,
+          disambiguationHint: hintStudent
+        }
       });
     } catch (error: any) {
       if (error.code === "P2002") {

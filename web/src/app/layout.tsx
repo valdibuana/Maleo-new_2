@@ -7,9 +7,11 @@ export const metadata: Metadata = {
     "Sistem Informasi Akademik Sekolah — Kelola data siswa, guru, jadwal, kehadiran, dan nilai secara digital.",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true,
     statusBarStyle: "default",
     title: "SIAKAD",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 

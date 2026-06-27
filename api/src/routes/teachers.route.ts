@@ -35,7 +35,21 @@ router.get("/", verifyJWT, async (req: Request, res: Response) => {
     }
     const teachers = await prisma.teacher.findMany({
       where,
-      include: { user: { select: { userCode: true } }, subjects: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        nip: true,
+        name: true,
+        gender: true,
+        email: true,
+        phone: true,
+        subject: true,
+        status: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { select: { userCode: true } },
+        subjects: { select: { id: true, name: true } },
+      },
       orderBy: { name: "asc" },
     });
     const result = teachers.map((t) => ({
@@ -114,13 +128,17 @@ router.post("/", verifyJWT, checkRole("admin"), validate(teacherSchema), async (
       return { teacher, username, userCode, subject };
     });
 
+    const hintTeacher = result.teacher.phone
+      ? `HP: ${result.teacher.phone}`
+      : `NIP: ${result.teacher.nip}`;
+
     res.status(201).json({ 
       success: true,
-      message: `Guru berhasil ditambahkan. Akun login otomatis dibuat dengan Password: ${defaultPassword}`, 
+      message: `Guru ${result.teacher.name} berhasil ditambahkan. ${hintTeacher}. Akun login otomatis dibuat dengan Password: ${defaultPassword}`, 
       data: {
         ...result.teacher,
         loginUsername: result.username,
-        disambiguationHint: result.subject || result.userCode
+        disambiguationHint: hintTeacher
       }
     });
   } catch (error: any) {

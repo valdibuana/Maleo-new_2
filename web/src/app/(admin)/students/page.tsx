@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
+import api from "@/lib/axios";
 import { apiService } from "@/services/apiService";
 import { Student, Grade } from "@/types";
 import { enqueueMutation } from "@/lib/offlineQueue";
@@ -42,6 +43,7 @@ export default function StudentsPage() {
   // Upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [nameError, setNameError] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   // 1. Fetch data on mount
   const fetchData = async () => {
@@ -135,8 +137,11 @@ export default function StudentsPage() {
         // Optimistic create
         const optimistic: any = { ...formData, id: tempId, gradeName: className, gradeId: Number(formData.classId), status: "active", userCode: "" };
         setStudents(prev => [...prev, optimistic]);
-        await apiService.create("/students", formData);
-        setSuccess("Siswa baru berhasil ditambahkan");
+        const res = await apiService.create("/students", formData);
+        setSuccess(
+          `✅ ${res.data.name} berhasil ditambahkan. ` +
+          `${res.data.disambiguationHint}`
+        );
       }
       
       await fetchData(); // refresh with real data
@@ -179,8 +184,9 @@ export default function StudentsPage() {
 
   // Download CSV template
   const handleDownloadTemplate = () => {
-    const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir", "Kelas", "Telepon", "Alamat"];
-    const csvContent = headers.join(",") + "\n";
+    const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
+    const exampleRow = ["Budi Santoso", "2024001", "L", "25/06/2010", "7A", "081234567890", "Jl. Merdeka No. 1"];
+    const csvContent = headers.join(",") + "\n" + exampleRow.join(",") + "\n";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -192,29 +198,63 @@ export default function StudentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Export existing students to Excel
+  // Export existing students to Excel — using apiService/axios instead of raw fetch
   const handleExportData = async () => {
+    setExportLoading(true);
+    setError("");
+    setSuccess("");
+    
     try {
-      const token = localStorage.getItem("jwt_token");
-      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api") + "/students/export", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+      // Use axios directly for blob response (apiService doesn't support responseType blob)
+      const response = await api.get("/students/export", {
+        responseType: "blob",
       });
       
-      if (!res.ok) throw new Error("Gagal export data");
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `Export_Data_Siswa_${Date.now()}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(url);
+      
+      setSuccess("Data siswa berhasil diexport.");
     } catch (err: any) {
-      setError("Gagal export data siswa.");
+      console.error("[Export Error]", err);
+      
+      // Try to extract error message from response
+      let errorMsg = "Gagal export data siswa.";
+      
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 404) {
+          errorMsg = "Endpoint export tidak ditemukan. Silakan hubungi administrator.";
+        } else if (status === 401) {
+          errorMsg = "Sesi login telah berakhir. Silakan login ulang.";
+        } else if (status === 403) {
+          errorMsg = "Anda tidak memiliki izin untuk mengexport data.";
+        } else if (err.response.data instanceof Blob) {
+          // Try to parse error response from blob
+          try {
+            const text = await err.response.data.text();
+            const json = JSON.parse(text);
+            errorMsg = json.message || errorMsg;
+          } catch {}
+        } else if (err.response.data?.message) {
+          errorMsg = err.response.data.message;
+        }
+      } else if (err.code === "ERR_NETWORK") {
+        errorMsg = "Koneksi ke server gagal. Pastikan server API berjalan.";
+      }
+      
+      setError(errorMsg);
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -230,11 +270,7 @@ export default function StudentsPage() {
     setSuccess("");
 
     try {
-      const response = await apiService.create("/students/import", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        }
-      });
+      const response = await apiService.create("/students/import", formData);
       
       setSuccess(response.message || "Data siswa berhasil di-import");
       setUploadFile(null);
@@ -286,9 +322,19 @@ export default function StudentsPage() {
             <Download size={16} />
             Template Excel
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleExportData} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200">
-            <Download size={16} />
-            Export Data
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={handleExportData} 
+            disabled={exportLoading}
+            className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200"
+          >
+            {exportLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Download size={16} />
+            )}
+            {exportLoading ? "Mengexport..." : "Export Data"}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => fetchData()}>
             Refresh
@@ -326,6 +372,9 @@ export default function StudentsPage() {
           {uploadFile && (
             <p className="text-xs text-muted-foreground">File: {uploadFile.name}</p>
           )}
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 w-full">
+            ⚠️ Pastikan kolom <strong>Tanggal lahir</strong> diisi dengan format <strong>DD/MM/YYYY</strong> (contoh: <code>25/06/2010</code>). Download <button onClick={handleDownloadTemplate} className="underline font-semibold cursor-pointer">Template Excel</button> untuk contoh.
+          </p>
         </div>
       </Card>
 
@@ -381,7 +430,11 @@ export default function StudentsPage() {
                           <Avatar name={student.name} size="sm" />
                           <div>
                             <p className="font-medium text-foreground">{student.name}</p>
-                            <p className="text-xs text-muted-foreground">{student.phone}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {student.phone
+                                ? `📱 ${student.phone}`
+                                : `NIS: ${student.nis}`}
+                            </p>
                           </div>
                         </div>
                       </td>

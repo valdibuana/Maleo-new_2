@@ -117,7 +117,7 @@ router.post("/import", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), upload.
             const hasBirthDate = birthDateRaw !== null && birthDateRaw !== undefined && String(birthDateRaw).trim() !== "";
             const birthDate = hasBirthDate ? parseBirthDate(birthDateRaw) : null;
             if (hasBirthDate && !birthDate) {
-                warnings.push(`Baris ${i + 1}: Format tanggal lahir tidak valid (${birthDateRaw}), tanggal lahir dikosongkan`);
+                warnings.push(`Baris ${i + 1}: Format tanggal lahir tidak valid (${birthDateRaw}). Gunakan format DD/MM/YYYY (contoh: 25/06/2010), tanggal lahir dikosongkan`);
                 warningCount++;
             }
             const classId = classMap.get(normalizeClassName(classNameRaw));
@@ -221,7 +221,7 @@ router.get("/export", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
                 name: "asc"
             }
         });
-        const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir", "Kelas", "Telepon", "Alamat"];
+        const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
         const rows = students.map((s) => {
             let birthDateStr = "-";
             if (s.birthDate) {
@@ -395,10 +395,16 @@ router.post("/", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), (0, validate_
             });
             return { student };
         });
+        const hintStudent = result.student.phone
+            ? `HP: ${result.student.phone}`
+            : `NIS: ${result.student.nis}`;
         res.status(201).json({
             success: true,
-            message: `Siswa berhasil ditambahkan. Akun login otomatis dibuat dengan Password: ${defaultPassword}`,
-            data: result.student
+            message: `Siswa ${result.student.name} berhasil ditambahkan. ${hintStudent}. Akun login otomatis dibuat dengan Password: ${defaultPassword}`,
+            data: {
+                ...result.student,
+                disambiguationHint: hintStudent
+            }
         });
     }
     catch (error) {

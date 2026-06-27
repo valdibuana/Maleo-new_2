@@ -155,9 +155,9 @@ export default function GuardianAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Capaian Rumpun Ilmu</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Analisis Minat Belajar</h1>
         <p className="text-muted-foreground">
-          Visualisasi rata-rata nilai kompetensi anak per kluster mata pelajaran.
+          Lihat rata-rata nilai dan kecenderungan minat belajar anak per kelompok mata pelajaran.
         </p>
       </div>
 
