@@ -340,3 +340,5 @@ Akun admin default: `admin@maleo.sch.id`
 ## 📄 Lisensi
 
 Project ini dibuat untuk keperluan akademik oleh tim **Maleo**.
+#   M a l e o - n e w _ 2  
+ 
