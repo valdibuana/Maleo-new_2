@@ -27,10 +27,30 @@ model User {
   principal             Principal? @relation(fields: [principalId], references: [id])
   student               Student?   @relation(fields: [studentId], references: [id])
   teacher               Teacher?   @relation(fields: [teacherId], references: [id])
+  refreshTokens         RefreshToken[]
 
   @@map("users")
   @@index([role])
 }
+
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique // SHA-256 hash of the JWT refresh token
+  familyId  String    @map("family_id") // Groups tokens from same login session
+  userId    Int       @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at") // null = still valid; set when rotated/revoked
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
 
 model Student {
   id                Int                     @id @default(autoincrement())

@@ -24,6 +24,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { performLogout } from "@/lib/axios";
 import Cookies from "js-cookie";
 
 const adminMenuItems = [
@@ -126,12 +127,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
   const handleLogout = () => {
     if (window.confirm("Apakah Anda yakin ingin keluar?")) {
-      localStorage.removeItem("jwt_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-      Cookies.remove("jwt_token");
-      Cookies.remove("refresh_token");
-      Cookies.remove("user_role");
+      performLogout();
       router.push("/login");
     }
   };

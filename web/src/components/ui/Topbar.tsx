@@ -5,6 +5,7 @@ import { Bell, LogOut, ChevronDown, User, Settings } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useRouter } from "next/navigation";
+import { performLogout } from "@/lib/axios";
 import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 
@@ -37,15 +38,7 @@ export function Topbar() {
 
   const handleLogout = () => {
     if (window.confirm("Apakah Anda yakin ingin keluar?")) {
-      // 3. Hapus semua kredensial
-      localStorage.removeItem("jwt_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-      Cookies.remove("jwt_token");
-      Cookies.remove("refresh_token");
-      Cookies.remove("user_role");
-      
-      // 4. Redirect ke login
+      performLogout();
       router.push("/login");
     }
   };

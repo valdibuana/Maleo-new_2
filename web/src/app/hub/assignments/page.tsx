@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { apiService } from "@/services/apiService";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -825,29 +826,35 @@ export default function AssignmentsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Select
+              <SearchableSelect
                 label="Mata Pelajaran"
                 value={newAssignment.subjectId}
                 onChange={(e) =>
                   setNewAssignment({ ...newAssignment, subjectId: e.target.value })
                 }
-                options={teacherSubjects.map((s) => ({
-                  value: String(s.id),
-                  label: s.name,
-                }))}
+                options={[
+                  { value: "", label: "Pilih mata pelajaran..." },
+                  ...teacherSubjects.map((s) => ({
+                    value: String(s.id),
+                    label: s.name,
+                  }))
+                ]}
                 placeholder="Pilih mata pelajaran..."
                 required
               />
-              <Select
+              <SearchableSelect
                 label="Kelas"
                 value={newAssignment.classId}
                 onChange={(e) =>
                   setNewAssignment({ ...newAssignment, classId: e.target.value })
                 }
-                options={teacherClasses.map((c) => ({
-                  value: String(c.id),
-                  label: c.name,
-                }))}
+                options={[
+                  { value: "", label: "Pilih kelas..." },
+                  ...teacherClasses.map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                  }))
+                ]}
                 placeholder="Pilih kelas..."
                 required
               />

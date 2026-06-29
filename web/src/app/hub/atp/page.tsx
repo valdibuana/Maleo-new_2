@@ -31,6 +31,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -681,15 +682,18 @@ export default function AtpPage() {
               <label className="block text-xs font-bold text-teal-950">Tambahkan Mapel Ampu</label>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Select
+                  <SearchableSelect
                     id="selectedSubjectToBind"
                     name="selectedSubjectToBind"
                     placeholder="Pilih Mata Pelajaran"
                     value={selectedSubjectToBind}
                     onChange={(e) => setSelectedSubjectToBind(e.target.value)}
-                    options={allSubjects
-                      .filter(s => !mySubjects.some(ms => ms.id === s.id))
-                      .map(s => ({ value: s.id.toString(), label: `[Grade ${s.gradeLevel}] ${s.name} (${s.code})` }))}
+                    options={[
+                      { value: "", label: "Pilih Mata Pelajaran" },
+                      ...allSubjects
+                        .filter(s => !mySubjects.some(ms => ms.id === s.id))
+                        .map(s => ({ value: s.id.toString(), label: `[Grade ${s.gradeLevel}] ${s.name} (${s.code})` }))
+                    ]}
                   />
                 </div>
                 <Button
@@ -773,16 +777,19 @@ export default function AtpPage() {
                 <h3 className="font-extrabold text-teal-950 text-base tracking-tight font-bold">Tahun Ajaran & Semester</h3>
                 <p className="text-xs text-muted-foreground">Pilih periode aktif untuk pembuatan ATP ini.</p>
               </div>
-              <Select
+              <SearchableSelect
                 id="wizardYear"
                 name="wizardYear"
                 placeholder="Pilih Tahun Ajaran"
                 value={wizardForm.academicYearId}
                 onChange={(e) => setWizardForm({ ...wizardForm, academicYearId: e.target.value })}
-                options={academicYears.map(y => ({
-                  value: y.id.toString(),
-                  label: `${y.name} - Semester ${y.semester === "odd" ? "Ganjil" : "Genap"} ${y.isActive ? "(Aktif)" : ""}`
-                }))}
+                options={[
+                  { value: "", label: "Pilih Tahun Ajaran" },
+                  ...academicYears.map(y => ({
+                    value: y.id.toString(),
+                    label: `${y.name} - Semester ${y.semester === "odd" ? "Ganjil" : "Genap"} ${y.isActive ? "(Aktif)" : ""}`
+                  }))
+                ]}
               />
             </div>
           )}
@@ -794,16 +801,19 @@ export default function AtpPage() {
                 <h3 className="font-extrabold text-teal-950 text-base tracking-tight font-bold">Pilih Mata Pelajaran</h3>
                 <p className="text-xs text-muted-foreground">Mata pelajaran yang Anda ampu yang akan dibuatkan ATP.</p>
               </div>
-              <Select
+              <SearchableSelect
                 id="wizardSubject"
                 name="wizardSubject"
                 placeholder="Pilih Mata Pelajaran"
                 value={wizardForm.subjectId}
                 onChange={(e) => setWizardForm({ ...wizardForm, subjectId: e.target.value })}
-                options={mySubjects.map(s => ({
-                  value: s.id.toString(),
-                  label: `[Tingkat ${s.gradeLevel}] ${s.name} (${s.code})`
-                }))}
+                options={[
+                  { value: "", label: "Pilih Mata Pelajaran" },
+                  ...mySubjects.map(s => ({
+                    value: s.id.toString(),
+                    label: `[Tingkat ${s.gradeLevel}] ${s.name} (${s.code})`
+                  }))
+                ]}
               />
               {mySubjects.length === 0 && (
                 <p className="text-xs text-red-500 italic">Belum ada mapel ampu. Hubungkan dulu di tombol atur mapel.</p>
@@ -826,7 +836,7 @@ export default function AtpPage() {
                   ? classes.filter(c => c.level === targetGradeLevel)
                   : classes;
                 return (
-                  <Select
+                  <SearchableSelect
                     id="wizardClass"
                     name="wizardClass"
                     placeholder={filteredClasses.length === 0
@@ -834,10 +844,13 @@ export default function AtpPage() {
                       : "Pilih Kelas"}
                     value={wizardForm.classId}
                     onChange={(e) => setWizardForm({ ...wizardForm, classId: e.target.value })}
-                    options={filteredClasses.map(c => ({
-                      value: c.id.toString(),
-                      label: `Kelas ${c.name} (Tingkat ${c.level})`
-                    }))}
+                    options={[
+                      { value: "", label: filteredClasses.length === 0 ? `Tidak ada kelas tingkat ${targetGradeLevel} tersedia` : "Pilih Kelas" },
+                      ...filteredClasses.map(c => ({
+                        value: c.id.toString(),
+                        label: `Kelas ${c.name} (Tingkat ${c.level})`
+                      }))
+                    ]}
                   />
                 );
               })()}

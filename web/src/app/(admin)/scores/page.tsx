@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
@@ -275,19 +276,25 @@ export default function ScoresPage() {
             />
           </div>
           <div className="w-36">
-            <Select
+            <SearchableSelect
               value={filterClass}
               onChange={e => setFilterClass(e.target.value)}
               placeholder="Semua Kelas"
-              options={classes.map(c => ({ value: c.name, label: c.name }))}
+              options={[
+                { value: "", label: "Semua Kelas" },
+                ...classes.map(c => ({ value: c.name, label: c.name }))
+              ]}
             />
           </div>
           <div className="w-40">
-            <Select
+            <SearchableSelect
               value={filterSubject}
               onChange={e => setFilterSubject(e.target.value)}
               placeholder="Semua Mapel"
-              options={subjects.map(s => ({ value: s.name, label: s.name }))}
+              options={[
+                { value: "", label: "Semua Mapel" },
+                ...subjects.map(s => ({ value: s.name, label: s.name }))
+              ]}
             />
           </div>
           <div className="w-36">
@@ -427,23 +434,29 @@ export default function ScoresPage() {
         title={editingGrade ? "Edit Nilai" : "Tambah Nilai Baru"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Select
+          <SearchableSelect
             label="Siswa"
             placeholder="Pilih siswa..."
             value={formData.studentId}
             onChange={e => setFormData({ ...formData, studentId: e.target.value })}
-            options={students.map(s => ({
-              value: String(s.id),
-              label: `${s.name}${s.class?.name ? ` — ${s.class.name}` : ""}`,
-            }))}
+            options={[
+              { value: "", label: "Pilih siswa..." },
+              ...students.map(s => ({
+                value: String(s.id),
+                label: `${s.name}${s.class?.name ? ` — ${s.class.name}` : ""}`,
+              }))
+            ]}
             required
           />
-          <Select
+          <SearchableSelect
             label="Mata Pelajaran"
             placeholder="Pilih mata pelajaran..."
             value={formData.subjectId}
             onChange={e => setFormData({ ...formData, subjectId: e.target.value })}
-            options={subjects.map(s => ({ value: String(s.id), label: s.name }))}
+            options={[
+              { value: "", label: "Pilih mata pelajaran..." },
+              ...subjects.map(s => ({ value: String(s.id), label: s.name }))
+            ]}
             required
           />
           <Select

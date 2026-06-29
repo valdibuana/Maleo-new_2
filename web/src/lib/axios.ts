@@ -66,6 +66,33 @@ function clearAuthSession(): void {
   document.cookie = "user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
 }
 
+/**
+ * Perform server-side logout: revoke refresh tokens + clear local session.
+ * Should be called when user explicitly logs out.
+ */
+export async function performLogout(): Promise<void> {
+  try {
+    const token = localStorage.getItem("jwt_token") || getCookie("jwt_token");
+    if (token) {
+      await axios.post(
+        `${getApiBaseUrl()}/auth/logout`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 5000,
+        }
+      );
+    }
+  } catch {
+    // Ignore server errors - we still clear local session
+    console.warn("[Auth] Logout API call failed, clearing local session anyway");
+  } finally {
+    clearAuthSession();
+  }
+}
+
+
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {

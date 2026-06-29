@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Pencil, Trash2, Users, Loader2, RefreshCcw } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Users, Loader2, RefreshCcw, X, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -57,7 +57,10 @@ export default function GuardiansPage() {
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
   const [guardianStudents, setGuardianStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
-  const [assignStudentId, setAssignStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [selectedStudentName, setSelectedStudentName] = useState("");
 
   const fetchAllStudents = async () => {
     try {
@@ -80,16 +83,26 @@ export default function GuardiansPage() {
   };
 
   const handleAssignStudent = async () => {
-    if (!assignStudentId || !selectedGuardian) return;
+    if (!selectedStudentId) {
+      setError("Pilih siswa terlebih dahulu.");
+      return;
+    }
+    if (!selectedGuardian) return;
+
     setIsSubmitting(true);
     try {
       await apiService.create(
         `/guardians/${selectedGuardian.id}/assign-student`,
-        { studentId: Number(assignStudentId) }
+        { studentId: selectedStudentId }
       );
       const res = await apiService.getAll(`/guardians/${selectedGuardian.id}/students`);
       setGuardianStudents(res.data || []);
-      setAssignStudentId("");
+      
+      setSelectedStudentId(null);
+      setSelectedStudentName("");
+      setStudentSearch("");
+      setIsStudentDropdownOpen(false);
+      
       await fetchGuardians(); // refresh list
     } catch (err: any) {
       alert(err.response?.data?.message || "Gagal assign siswa.");
@@ -120,6 +133,17 @@ export default function GuardiansPage() {
     if (user.role !== "kepala_sekolah") {
       fetchAllStudents();
     }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-student-selector]")) {
+        setIsStudentDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const filtered = guardians.filter(
@@ -201,6 +225,15 @@ Username Login: "${data.loginUsername}"
       setError("Gagal menghapus data");
     }
   };
+
+  const availableStudents = allStudents
+    .filter(s => !guardianStudents.find(gs => gs.id === s.id));
+
+  const filteredStudents = availableStudents.filter(s =>
+    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.nis?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.class?.name?.toLowerCase().includes(studentSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -350,21 +383,143 @@ Username Login: "${data.loginUsername}"
 
           <div className="border-t pt-4 border-border">
             <p className="text-sm font-medium mb-2">Hubungkan Siswa Baru:</p>
-            <div className="flex gap-2 items-center">
-              <select
-                className="flex-1 h-10 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                value={assignStudentId}
-                onChange={e => setAssignStudentId(e.target.value)}
-              >
-                <option value="">Pilih siswa...</option>
-                {allStudents
-                  .filter(s => !guardianStudents.find(gs => gs.id === s.id))
-                  .map(s => (
-                    <option key={s.id} value={s.id}>{s.name} — {s.class?.name || ''}</option>
-                  ))
-                }
-              </select>
-              <Button onClick={handleAssignStudent} disabled={!assignStudentId || isSubmitting}>
+            <div className="flex gap-2 items-end">
+              <div className="relative flex-1" data-student-selector>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Cari & Pilih Siswa
+                </label>
+
+                {/* Input search dengan preview siswa terpilih */}
+                <div
+                  className="flex items-center gap-2 w-full rounded-lg border
+                    border-input bg-card px-3 py-2 cursor-pointer
+                    hover:border-ring transition-colors h-10"
+                  onClick={() => setIsStudentDropdownOpen(prev => !prev)}
+                >
+                  {selectedStudentId ? (
+                    // State: sudah ada siswa terpilih
+                    <div className="flex items-center justify-between w-full">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {selectedStudentName}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                          {availableStudents.find(
+                            s => s.id === selectedStudentId
+                          )?.nis || ""} •{" "}
+                          {availableStudents.find(
+                            s => s.id === selectedStudentId
+                          )?.class?.name || ""}
+                        </p>
+                      </div>
+                      {/* Tombol clear pilihan */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStudentId(null);
+                          setSelectedStudentName("");
+                          setStudentSearch("");
+                        }}
+                        className="p-1 rounded hover:bg-muted transition-colors
+                          text-muted-foreground hover:text-foreground"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    // State: belum ada siswa terpilih
+                    <div className="flex items-center gap-2 w-full h-full">
+                      <Search size={14} className="text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Ketik nama, NIS, atau kelas..."
+                        value={studentSearch}
+                        onChange={(e) => {
+                          setStudentSearch(e.target.value);
+                          setIsStudentDropdownOpen(true);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 text-sm bg-transparent outline-none
+                          text-foreground placeholder:text-muted-foreground h-full"
+                      />
+                      {studentSearch && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStudentSearch("");
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Dropdown hasil pencarian */}
+                {isStudentDropdownOpen && !selectedStudentId && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1
+                    bg-card border border-border rounded-lg shadow-lg
+                    max-h-56 overflow-y-auto">
+
+                    {filteredStudents.length === 0 ? (
+                      <div className="px-4 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          {studentSearch
+                            ? `Tidak ada siswa dengan "${studentSearch}"`
+                            : availableStudents.length === 0
+                            ? "Semua siswa sudah terhubung ke wali murid ini"
+                            : "Belum ada data siswa"}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Counter hasil */}
+                        <div className="px-3 py-2 border-b border-border/50">
+                          <p className="text-[10px] text-muted-foreground">
+                            {filteredStudents.length} siswa ditemukan
+                            {studentSearch && ` untuk "${studentSearch}"`}
+                          </p>
+                        </div>
+
+                        {/* List siswa */}
+                        {filteredStudents.map(student => (
+                          <button
+                            key={student.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudentId(student.id);
+                              setSelectedStudentName(student.name);
+                              setStudentSearch("");
+                              setIsStudentDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center justify-between
+                              px-4 py-2.5 text-left hover:bg-muted/50
+                              transition-colors border-b border-border/30
+                              last:border-0"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {student.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                NIS: {student.nis || "-"} •{" "}
+                                {student.class?.name || "Belum ada kelas"}
+                              </p>
+                            </div>
+                            <ChevronRight size={14}
+                              className="text-muted-foreground shrink-0" />
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Button onClick={handleAssignStudent} disabled={!selectedStudentId || isSubmitting} className="h-10">
                 {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : "Hubungkan"}
               </Button>
             </div>

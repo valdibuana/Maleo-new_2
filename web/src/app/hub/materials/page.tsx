@@ -24,6 +24,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { apiService } from "@/services/apiService";
@@ -457,7 +458,7 @@ export default function MaterialsPage() {
           </div>
           <div className="flex items-center gap-3">
              <div className="w-48">
-               <Select
+               <SearchableSelect
                  id="filterSubjectId"
                  name="filterSubjectId"
                  placeholder="Semua Mata Pelajaran"
@@ -657,7 +658,7 @@ export default function MaterialsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-48">
-            <Select
+            <SearchableSelect
               id="selectedSubject"
               name="selectedSubject"
               placeholder="Pilih Mata Pelajaran"
@@ -667,7 +668,7 @@ export default function MaterialsPage() {
             />
           </div>
           <div className="w-48">
-            <Select
+            <SearchableSelect
               id="selectedYear"
               name="selectedYear"
               placeholder="Pilih Semester"
@@ -678,7 +679,7 @@ export default function MaterialsPage() {
           </div>
           {isTeacher && (
             <div className="w-48">
-              <Select
+              <SearchableSelect
                 id="selectedClass"
                 name="selectedClass"
                 placeholder="Pilih Kelas"

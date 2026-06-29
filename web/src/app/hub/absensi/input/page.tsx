@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { apiService } from "@/services/apiService";
 import { cn } from "@/lib/utils";
 import { enqueueMutation } from "@/lib/offlineQueue";
@@ -314,11 +315,14 @@ export default function AttendanceInputPage() {
           {/* Phase 1: Selector */}
           <Card className="p-6 shadow-sm border-border">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-              <Select
+              <SearchableSelect
                 label="Pilih Kelas"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                options={classes.map(c => ({ value: String(c.id), label: c.name }))}
+                options={[
+                  { value: "", label: classes.length === 0 ? "Tidak ada kelas yang Anda ajar..." : "Pilih Kelas..." },
+                  ...classes.map(c => ({ value: String(c.id), label: c.name }))
+                ]}
                 placeholder={classes.length === 0 ? "Tidak ada kelas yang Anda ajar..." : "Pilih Kelas..."}
               />
               <Input

@@ -9,6 +9,7 @@ import { getApiBaseUrl } from "@/lib/api-url";
 import { cn } from "@/lib/utils";
 import { ScheduleSlotCard, ScheduleSlot as BaseScheduleSlot } from "@/components/schedule/ScheduleSlotCard";
 import { TeacherAssignModal } from "@/components/schedule/TeacherAssignModal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 
 interface ScheduleSlot extends BaseScheduleSlot {
   isPublished?: boolean;
@@ -471,14 +472,18 @@ export default function AdminSchedulesPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Guru Pengampu</label>
-                <select className="w-full border rounded-lg p-2 text-sm" value={addForm.teacherId} onChange={e => {
-                  const t = teachers.find((t: any) => t.id === Number(e.target.value));
-                  setAddForm(f => ({...f, teacherId: e.target.value, teacherName: t?.name || ""}));
-                }}>
-                  <option value="">-- Pilih Guru (opsional) --</option>
-                  {teachers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <SearchableSelect 
+                  label="Guru Pengampu"
+                  options={[
+                    { value: "", label: "-- Pilih Guru (opsional) --" },
+                    ...teachers.map((t: any) => ({ value: t.id, label: t.name }))
+                  ]}
+                  value={addForm.teacherId} 
+                  onChange={e => {
+                    const t = teachers.find((t: any) => t.id === Number(e.target.value));
+                    setAddForm(f => ({...f, teacherId: e.target.value, teacherName: t?.name || ""}));
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Atau Ketik Nama Guru</label>

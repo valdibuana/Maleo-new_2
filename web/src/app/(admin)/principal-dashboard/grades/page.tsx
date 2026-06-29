@@ -9,6 +9,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { apiService } from "@/services/apiService";
@@ -179,27 +180,28 @@ export default function ScoresPage() {
             />
           </div>
           <div className="w-36">
-            <Select
+            <SearchableSelect
               value={filterClass}
               onChange={e => setFilterClass(e.target.value)}
               placeholder="Semua Kelas"
-              options={classes.map(c => ({ value: c.name, label: c.name }))}
+              options={[{ value: "", label: "Semua Kelas" }, ...classes.map(c => ({ value: c.name, label: c.name }))]}
             />
           </div>
           <div className="w-40">
-            <Select
+            <SearchableSelect
               value={filterSubject}
               onChange={e => setFilterSubject(e.target.value)}
               placeholder="Semua Mapel"
-              options={subjects.map(s => ({ value: s.name, label: s.name }))}
+              options={[{ value: "", label: "Semua Mapel" }, ...subjects.map(s => ({ value: s.name, label: s.name }))]}
             />
           </div>
           <div className="w-36">
-            <Select
+            <SearchableSelect
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
               placeholder="Semua Tipe"
               options={[
+                { value: "", label: "Semua Tipe" },
                 { value: "Tugas", label: "Tugas" },
                 { value: "PSTS",  label: "PSTS"  },
                 { value: "PSAS",  label: "PSAS"  },

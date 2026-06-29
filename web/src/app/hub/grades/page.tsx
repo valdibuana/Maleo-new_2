@@ -24,6 +24,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { apiService } from "@/services/apiService";
@@ -528,9 +529,12 @@ export default function GradesPage() {
           </div>
           {subjects.length > 0 && (
             <div className="w-44">
-              <Select
+              <SearchableSelect
                 placeholder="Semua Mapel"
-                options={subjects.map(s => ({ value: String(s.id), label: s.name }))}
+                options={[
+                  { value: "", label: "Semua Mapel" },
+                  ...subjects.map(s => ({ value: String(s.id), label: s.name }))
+                ]}
                 value={filterSubject}
                 onChange={e => setFilterSubject(e.target.value)}
               />
@@ -538,9 +542,12 @@ export default function GradesPage() {
           )}
           {isTeacher && classes.length > 0 && (
             <div className="w-40">
-              <Select
+              <SearchableSelect
                 placeholder="Semua Kelas"
-                options={classes.map(c => ({ value: String(c.id), label: c.name }))}
+                options={[
+                  { value: "", label: "Semua Kelas" },
+                  ...classes.map(c => ({ value: String(c.id), label: c.name }))
+                ]}
                 value={filterClass}
                 onChange={e => {
                   setFilterClass(e.target.value);
@@ -757,10 +764,13 @@ export default function GradesPage() {
         <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)} title={editingGrade ? "Edit Nilai Siswa" : "Input Nilai Siswa"}>
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Select
+              <SearchableSelect
                 label="Kelas"
                 placeholder="Pilih kelas..."
-                options={classes.map(c => ({ value: String(c.id), label: c.name }))}
+                options={[
+                  { value: "", label: "Pilih kelas..." },
+                  ...classes.map(c => ({ value: String(c.id), label: c.name }))
+                ]}
                 value={filterClass}
                 onChange={e => {
                   setFilterClass(e.target.value);
@@ -768,19 +778,25 @@ export default function GradesPage() {
                 }}
                 disabled={!!editingGrade}
               />
-              <Select
+              <SearchableSelect
                 label="Mata Pelajaran"
                 placeholder="Pilih mapel..."
-                options={subjects.map(s => ({ value: String(s.id), label: s.name }))}
+                options={[
+                  { value: "", label: "Pilih mapel..." },
+                  ...subjects.map(s => ({ value: String(s.id), label: s.name }))
+                ]}
                 value={form.subjectId}
                 onChange={e => setForm({ ...form, subjectId: e.target.value })}
                 disabled={!!editingGrade}
               />
             </div>
-            <Select
+            <SearchableSelect
               label="Nama Siswa"
               placeholder={students.length > 0 ? "Pilih siswa..." : "Pilih kelas dulu..."}
-              options={students.map(s => ({ value: String(s.id), label: `${s.name} (${s.nis})` }))}
+              options={[
+                { value: "", label: students.length > 0 ? "Pilih siswa..." : "Pilih kelas dulu..." },
+                ...students.map(s => ({ value: String(s.id), label: `${s.name} (${s.nis})` }))
+              ]}
               value={form.studentId}
               onChange={e => setForm({ ...form, studentId: e.target.value })}
               disabled={!!editingGrade}

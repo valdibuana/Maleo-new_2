@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
@@ -390,9 +391,12 @@ export default function StudentsPage() {
             />
           </div>
           <div className="w-full sm:w-48">
-            <Select
+            <SearchableSelect
               placeholder="Semua Kelas"
-              options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
+              options={[
+                { value: "", label: "Semua Kelas" },
+                ...classes.map((c) => ({ value: String(c.id), label: c.name }))
+              ]}
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value)}
             />
@@ -543,7 +547,7 @@ export default function StudentsPage() {
               onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
               required
             />
-            <Select
+            <SearchableSelect
               label="Kelas"
               options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
               placeholder="Pilih kelas"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { apiService } from "@/services/apiService";
 import { ClipboardCheck, CheckCircle2, XCircle, MinusCircle, AlertCircle, Loader2, UserX, CalendarDays } from "lucide-react";
 
@@ -147,26 +148,20 @@ export default function AttendancesPage() {
 
               <div className="flex gap-3 ml-auto">
                 {/* Bulan */}
-                <select
-                  value={selectedMonth}
+                <SearchableSelect
+                  value={String(selectedMonth)}
                   onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {MONTH_NAMES.map((m, i) => (
-                    <option key={i + 1} value={i + 1}>{m}</option>
-                  ))}
-                </select>
+                  options={MONTH_NAMES.map((m, i) => ({ value: String(i + 1), label: m }))}
+                  placeholder="Pilih Bulan"
+                />
 
                 {/* Tahun */}
-                <select
-                  value={selectedYear}
+                <SearchableSelect
+                  value={String(selectedYear)}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                  options={[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => ({ value: String(y), label: String(y) }))}
+                  placeholder="Pilih Tahun"
+                />
               </div>
             </div>
           </Card>

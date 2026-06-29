@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { apiService } from "@/services/apiService";
@@ -209,9 +210,12 @@ export default function SubjectsPage() {
             <Input label="Kode Mapel" placeholder="MTK" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} required />
             <Input label="Nama Mapel" placeholder="Matematika" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
           </div>
-          <Select 
+          <SearchableSelect 
             label="Guru Pengampu" 
-            options={teachers.map(t => ({value: String(t.id), label: t.name}))} 
+            options={[
+              { value: "", label: "Pilih guru" },
+              ...teachers.map(t => ({value: String(t.id), label: t.name}))
+            ]} 
             placeholder="Pilih guru" 
             value={formData.teacherId} 
             onChange={e => setFormData({...formData, teacherId: e.target.value})} 

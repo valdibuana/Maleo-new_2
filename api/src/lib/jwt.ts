@@ -1,6 +1,7 @@
 import jwt, { SignOptions } from "jsonwebtoken";
+import crypto from "crypto";
 
-// JWT_SECRET is validated at startup in index.ts — safe to use non-null assertion
+// JWT_SECRET is validated at startup in index.ts - safe to use non-null assertion
 const ACCESS_SECRET: string = process.env.JWT_SECRET!;
 const REFRESH_SECRET: string = process.env.JWT_REFRESH_SECRET || ACCESS_SECRET;
 const ACCESS_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "12h";
@@ -10,6 +11,22 @@ export interface JwtPayload {
   id: number;
   role: string;
   tokenType?: "access" | "refresh";
+  jti?: string; // JWT ID - unique token identifier for rotation tracking
+}
+
+/**
+ * Generate a unique token ID (jti) for refresh token rotation tracking.
+ */
+export function generateTokenId(): string {
+  return crypto.randomUUID();
+}
+
+/**
+ * Hash a refresh token JWT string using SHA-256.
+ * The hash is stored in the database instead of the raw JWT.
+ */
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export function signAccessToken(payload: JwtPayload): string {
@@ -19,11 +36,16 @@ export function signAccessToken(payload: JwtPayload): string {
   return jwt.sign({ ...payload, tokenType: "access" }, ACCESS_SECRET, options);
 }
 
-export function signRefreshToken(payload: JwtPayload): string {
+/**
+ * Sign a refresh token with a unique jti for rotation tracking.
+ * @param payload - The JWT payload (id, role)
+ * @param tokenId - The unique token ID (jti) generated via generateTokenId()
+ */
+export function signRefreshToken(payload: JwtPayload, tokenId: string): string {
   const options: SignOptions = {
     expiresIn: REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"],
   };
-  return jwt.sign({ ...payload, tokenType: "refresh" }, REFRESH_SECRET, options);
+  return jwt.sign({ ...payload, tokenType: "refresh", jti: tokenId }, REFRESH_SECRET, options);
 }
 
 export function verifyAccessToken(token: string): JwtPayload {

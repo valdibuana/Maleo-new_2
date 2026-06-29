@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { apiService } from "@/services/apiService";
@@ -236,22 +237,26 @@ export default function AttendancesPage() {
             />
           </div>
           <div className="w-40">
-            <Select
+            <SearchableSelect
               placeholder="Semua Kelas"
               value={filterClassId}
               onChange={(e) => setFilterClassId(e.target.value)}
-              options={classes.map((c) => ({
-                value: String(c.id),
-                label: c.name,
-              }))}
+              options={[
+                { value: "", label: "Semua Kelas" },
+                ...classes.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                }))
+              ]}
             />
           </div>
           <div className="w-36">
-            <Select
+            <SearchableSelect
               placeholder="Semua Status"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               options={[
+                { value: "", label: "Semua Status" },
                 { value: "hadir", label: "Hadir" },
                 { value: "izin", label: "Izin" },
                 { value: "sakit", label: "Sakit" },

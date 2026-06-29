@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { performLogout } from "@/lib/axios";
 import { cn } from "@/lib/utils";
 import Cookies from "js-cookie";
 import {
@@ -105,12 +106,7 @@ export function HubSidebar() {
 
   const handleLogout = () => {
     if (window.confirm("Apakah Anda yakin ingin keluar?")) {
-      localStorage.removeItem("jwt_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-      Cookies.remove("jwt_token");
-      Cookies.remove("refresh_token");
-      Cookies.remove("user_role");
+      performLogout();
       router.push("/login");
     }
   };

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { apiService } from "@/services/apiService";
 import { MessageCircle, Send, Loader2, Plus } from "lucide-react";
 
@@ -230,19 +231,19 @@ export default function ConsultationsPage() {
         <form onSubmit={handleCreate} className="space-y-4 p-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Kepada (Guru)</label>
-            <select
-              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            <SearchableSelect
               value={newForm.receiverId}
               onChange={e => setNewForm({ ...newForm, receiverId: e.target.value })}
+              options={[
+                { value: "", label: "Pilih Guru..." },
+                ...teachers.map(t => ({
+                  value: t.userId,
+                  label: `${t.name} — ${t.subject} (${t.class}) ${t.phone ? `• ${t.phone}` : ""}`
+                }))
+              ]}
+              placeholder="Pilih Guru..."
               required
-            >
-              <option value="">Pilih Guru...</option>
-              {teachers.map(t => (
-                <option key={t.userId} value={t.userId}>
-                  {t.name} — {t.subject} ({t.class}) {t.phone ? `• ${t.phone}` : ""}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <Input
             label="Subjek"

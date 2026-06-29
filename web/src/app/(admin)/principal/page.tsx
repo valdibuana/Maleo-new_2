@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { apiService } from "@/services/apiService";
@@ -165,9 +166,11 @@ export default function PrincipalManagement() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Nama Lengkap" placeholder="Masukkan nama lengkap" required {...field("name")} />
             <Input label="NIP" placeholder="Contoh: 198701012010011001" required {...field("nip")} />
-            <Select label="Jenis Kelamin"
-              options={[{ value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]}
-              {...field("gender")} />
+            <SearchableSelect label="Jenis Kelamin"
+              options={[{ value: "", label: "Pilih Jenis Kelamin" }, { value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]}
+              placeholder="Pilih Jenis Kelamin"
+              value={formData.gender}
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value })} />
             <Input label="Telepon" placeholder="08xxxxxxxxxx" {...field("phone")} />
             <Input label="Email" type="email" placeholder="email@sekolah.sch.id" {...field("email")} />
             <Input label="Alamat" placeholder="Jl. ..." {...field("address")} />
