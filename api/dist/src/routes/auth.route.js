@@ -10,7 +10,7 @@ const prisma_1 = require("../lib/prisma");
 const jwt_1 = require("../lib/jwt");
 const validate_1 = require("../middleware/validate");
 const auth_1 = require("../middleware/auth");
-// authLimiter removed — too inconvenient for users; global apiLimiter still active
+const rate_limit_1 = require("../middleware/rate-limit");
 const router = (0, express_1.Router)();
 // ──────────────────────────────────────────────
 // Validation Schemas
@@ -27,20 +27,17 @@ const changePasswordSchema = zod_1.z.object({
         .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
         .regex(/[0-9]/, "Password harus mengandung minimal 1 angka"),
 });
-const refreshSchema = zod_1.z.object({
-    refreshToken: zod_1.z.string().min(1, "Refresh token wajib diisi"),
-});
 // ──────────────────────────────────────────────
 // POST /api/auth/login
 // Menerima email & password, mengembalikan JWT + data user beserta role
+// Refresh token disimpan ke database dengan hash untuk rotation tracking
 // ──────────────────────────────────────────────
-router.post("/login", (0, validate_1.validate)(loginSchema), async (req, res) => {
+router.post("/login", rate_limit_1.authLimiter, (0, validate_1.validate)(loginSchema), async (req, res) => {
     try {
         const { identifier, password } = req.body;
         // Normalize identifier
         const normalizedIdentifier = identifier.toLowerCase().trim();
-        // Cari user dengan semua identifier — tidak ada batasan per role
-        // Semua role bisa login pakai: username, email, userCode, atau nipNis
+        // Cari user dengan semua identifier
         const user = await prisma_1.prisma.user.findFirst({
             where: {
                 OR: [
@@ -52,25 +49,26 @@ router.post("/login", (0, validate_1.validate)(loginSchema), async (req, res) =>
             },
         });
         if (!user) {
-            res.status(401).json({
-                success: false,
-                message: "Kredensial login salah",
-            });
+            res.status(401).json({ success: false, message: "Kredensial login salah" });
             return;
         }
-        // Verifikasi password
         const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
         if (!isPasswordValid) {
-            res.status(401).json({
-                success: false,
-                message: "Kredensial login salah",
-            });
+            res.status(401).json({ success: false, message: "Kredensial login salah" });
             return;
         }
-        // Generate access + refresh token
+        // Generate access token
         const token = (0, jwt_1.signAccessToken)({ id: user.id, role: user.role });
-        const refreshToken = (0, jwt_1.signRefreshToken)({ id: user.id, role: user.role });
-        // Response berhasil — sertakan force_change_password
+        // Refresh Token Rotation: Simpan ke database
+        const tokenId = (0, jwt_1.generateTokenId)();
+        const familyId = tokenId; // familyId = jti untuk token pertama
+        const refreshToken = (0, jwt_1.signRefreshToken)({ id: user.id, role: user.role }, tokenId);
+        const tokenHash = (0, jwt_1.hashToken)(refreshToken);
+        const refreshExpiryMs = parseDuration(process.env.JWT_REFRESH_EXPIRES_IN || "30d");
+        const expiresAt = new Date(Date.now() + refreshExpiryMs);
+        await prisma_1.prisma.refreshToken.create({
+            data: { token: tokenHash, familyId, userId: user.id, expiresAt },
+        });
         res.json({
             success: true,
             message: "Login berhasil",
@@ -96,6 +94,9 @@ router.post("/login", (0, validate_1.validate)(loginSchema), async (req, res) =>
             message: "Terjadi kesalahan server. Silakan coba lagi nanti.",
         });
     }
+});
+const refreshSchema = zod_1.z.object({
+    refreshToken: zod_1.z.string().min(1, "Refresh token wajib diisi"),
 });
 // ──────────────────────────────────────────────
 // GET /api/auth/me
@@ -140,101 +141,79 @@ router.get("/me", auth_1.verifyJWT, async (req, res) => {
             },
         });
         if (!user) {
-            res.status(404).json({
-                success: false,
-                message: "User tidak ditemukan",
-            });
+            res.status(404).json({ success: false, message: "User tidak ditemukan" });
             return;
         }
-        res.json({
-            success: true,
-            data: { user },
-        });
+        res.json({ success: true, data: { user } });
     }
     catch (error) {
         console.error("[Auth] Me error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan server",
-        });
+        res.status(500).json({ success: false, message: "Terjadi kesalahan server" });
     }
 });
 // ──────────────────────────────────────────────
 // PUT /api/auth/change-password
-// Mengubah password user yang sedang login
+// Mengubah password user yang sedang login + revoke semua refresh token
 // ──────────────────────────────────────────────
 router.put("/change-password", auth_1.verifyJWT, (0, validate_1.validate)(changePasswordSchema), async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
-        const user = await prisma_1.prisma.user.findUnique({
-            where: { id: req.user.id },
-        });
+        const user = await prisma_1.prisma.user.findUnique({ where: { id: req.user.id } });
         if (!user) {
-            res.status(404).json({
-                success: false,
-                message: "User tidak ditemukan",
-            });
+            res.status(404).json({ success: false, message: "User tidak ditemukan" });
             return;
         }
-        // Verifikasi password saat ini
         const isCurrentPasswordValid = await bcryptjs_1.default.compare(currentPassword, user.password);
         if (!isCurrentPasswordValid) {
-            res.status(400).json({
-                success: false,
-                message: "Password lama tidak sesuai",
-            });
+            res.status(400).json({ success: false, message: "Password lama tidak sesuai" });
             return;
         }
-        // Password baru tidak boleh sama dengan lama
         if (currentPassword === newPassword) {
-            res.status(400).json({
-                success: false,
-                message: "Password baru tidak boleh sama dengan password lama",
-            });
+            res.status(400).json({ success: false, message: "Password baru tidak boleh sama dengan password lama" });
             return;
         }
-        // Hash password baru dan simpan
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
-        await prisma_1.prisma.user.update({
-            where: { id: user.id },
-            data: {
-                password: hashedPassword,
-                force_change_password: false,
-            },
-        });
+        // Transaction: update password + revoke all refresh tokens
+        await prisma_1.prisma.$transaction([
+            prisma_1.prisma.user.update({
+                where: { id: user.id },
+                data: { password: hashedPassword, force_change_password: false },
+            }),
+            prisma_1.prisma.refreshToken.updateMany({
+                where: { userId: user.id, revokedAt: null },
+                data: { revokedAt: new Date() },
+            }),
+        ]);
         res.json({
             success: true,
-            message: "Password berhasil diubah",
+            message: "Password berhasil diubah. Semua perangkat akan logout.",
         });
     }
     catch (error) {
         console.error("[Auth] Change password error:", error);
         res.status(500).json({
             success: false,
-            message: "Terjadi kesalahan server",
+            message: "Terjadi kesalahan server. Silakan coba lagi nanti.",
         });
     }
 });
 // ──────────────────────────────────────────────
 // POST /api/auth/forgot-password
-// Reset password menggunakan Password Default Sistem (Inisial Role + Kode Login)
-// Tidak memerlukan JWT — endpoint publik
+// User lupa password - verifikasi default password sistem, lalu set password baru
+// + Revoke all refresh tokens
 // ──────────────────────────────────────────────
-const forgotPasswordSchema = zod_1.z.object({
+router.post("/forgot-password", rate_limit_1.authLimiter, (0, validate_1.validate)(zod_1.z.object({
     identifier: zod_1.z.string().min(1, "Email / NIS / NIP wajib diisi"),
-    defaultPassword: zod_1.z.string().min(1, "Password default sistem wajib diisi"),
+    defaultPassword: zod_1.z.string().min(1, "Password default wajib diisi"),
     newPassword: zod_1.z
         .string()
         .min(8, "Password minimal 8 karakter")
         .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
         .regex(/[0-9]/, "Password harus mengandung minimal 1 angka"),
-});
-router.post("/forgot-password", (0, validate_1.validate)(forgotPasswordSchema), async (req, res) => {
+})), async (req, res) => {
     try {
         const { identifier, defaultPassword, newPassword } = req.body;
-        // Normalize identifier (same as login)
         const normalizedIdentifier = identifier.toLowerCase().trim();
-        // Cari user dengan semua identifier — konsisten dengan endpoint login
         const user = await prisma_1.prisma.user.findFirst({
             where: {
                 OR: [
@@ -246,133 +225,188 @@ router.post("/forgot-password", (0, validate_1.validate)(forgotPasswordSchema), 
             },
         });
         if (!user) {
-            res.status(404).json({
-                success: false,
-                message: "User tidak ditemukan",
-            });
+            res.status(404).json({ success: false, message: "User tidak ditemukan" });
             return;
         }
-        // Admin tidak menggunakan Kode Login — tolak
         if (user.role === "admin") {
-            res.status(403).json({
-                success: false,
-                message: "Fitur ini tidak tersedia untuk akun admin",
-            });
+            res.status(403).json({ success: false, message: "Fitur ini tidak tersedia untuk akun admin" });
             return;
         }
-        // Pastikan user memiliki userCode
         if (!user.userCode) {
-            res.status(400).json({
-                success: false,
-                message: "Akun ini tidak memiliki Kode Login. Hubungi administrator.",
-            });
+            res.status(400).json({ success: false, message: "Akun ini tidak memiliki Kode Login. Hubungi administrator." });
             return;
         }
-        // Generate formula Password Default Sistem berdasarkan role
-        // userCode may or may not include the role prefix depending on creation path
         const rolePrefixMap = {
-            teacher: "G",
-            student: "S",
-            guardian: "O",
-            kepala_sekolah: "K",
+            teacher: "G", student: "S", guardian: "O", kepala_sekolah: "K",
         };
         const prefix = rolePrefixMap[user.role];
         if (!prefix) {
-            res.status(400).json({
-                success: false,
-                message: "Role tidak didukung untuk fitur ini",
-            });
+            res.status(400).json({ success: false, message: "Role tidak didukung untuk fitur ini" });
             return;
         }
-        // Build expected default password — handle both prefixed and un-prefixed userCode
         const expectedDefaultPassword = user.userCode.startsWith(prefix)
-            ? user.userCode // already prefixed (bulk import / migrated)
-            : prefix + user.userCode; // needs prefix (single-create)
-        // Bandingkan input user dengan formula
+            ? user.userCode
+            : prefix + user.userCode;
         if (defaultPassword !== expectedDefaultPassword) {
-            res.status(400).json({
-                success: false,
-                message: "Password default sistem tidak sesuai",
-            });
+            res.status(400).json({ success: false, message: "Password default sistem tidak sesuai" });
             return;
         }
-        // Hash password baru dan simpan
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
-        await prisma_1.prisma.user.update({
-            where: { id: user.id },
-            data: {
-                password: hashedPassword,
-                force_change_password: false,
-            },
-        });
-        res.json({
-            success: true,
-            message: "Password berhasil diubah",
-        });
+        // Transaction: update password + revoke all tokens
+        await prisma_1.prisma.$transaction([
+            prisma_1.prisma.user.update({
+                where: { id: user.id },
+                data: { password: hashedPassword, force_change_password: false },
+            }),
+            prisma_1.prisma.refreshToken.updateMany({
+                where: { userId: user.id, revokedAt: null },
+                data: { revokedAt: new Date() },
+            }),
+        ]);
+        res.json({ success: true, message: "Password berhasil diubah. Silakan login dengan password baru." });
     }
     catch (error) {
         console.error("[Auth] Forgot password error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan server. Silakan coba lagi nanti.",
-        });
+        res.status(500).json({ success: false, message: "Terjadi kesalahan server. Silakan coba lagi nanti." });
     }
 });
 // ──────────────────────────────────────────────
 // POST /api/auth/refresh
-// Menghasilkan access token baru dari refresh token
+// REFRESH TOKEN ROTATION dengan REUSE DETECTION
+//   1. Verifikasi JWT signature & jti
+//   2. Cari token_hash di database - harus ADA dan BELUM di-revoke
+//   3. Jika tidak ditemukan atau sudah di-revoke -> REUSE DETECTION
+//      -> revoke semua token dalam family (force logout)
+//   4. Jika valid -> rotate: revoke yang lama, create yang baru (family_id tetap)
 // ──────────────────────────────────────────────
 router.post("/refresh", (0, validate_1.validate)(refreshSchema), async (req, res) => {
     try {
         const { refreshToken } = req.body;
-        const payload = (0, jwt_1.verifyRefreshToken)(refreshToken);
-        if (payload.tokenType && payload.tokenType !== "refresh") {
+        // Step 1: Verify JWT signature
+        let payload;
+        try {
+            payload = (0, jwt_1.verifyRefreshToken)(refreshToken);
+        }
+        catch (jwtError) {
+            const isExpired = jwtError instanceof Error && jwtError.name === "TokenExpiredError";
             res.status(401).json({
                 success: false,
-                message: "Refresh token tidak valid.",
+                code: isExpired ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+                message: isExpired ? "Sesi telah berakhir. Silakan login kembali." : "Refresh token tidak valid.",
             });
             return;
         }
+        if (payload.tokenType && payload.tokenType !== "refresh") {
+            res.status(401).json({ success: false, code: "INVALID_TOKEN_TYPE", message: "Jenis token tidak valid." });
+            return;
+        }
+        const tokenHash = (0, jwt_1.hashToken)(refreshToken);
+        const jti = payload.jti;
+        if (!jti) {
+            res.status(401).json({ success: false, code: "OLD_TOKEN_FORMAT", message: "Sesi lama tidak didukung. Silakan login kembali." });
+            return;
+        }
+        // Step 2: Look up in database
+        const storedToken = await prisma_1.prisma.refreshToken.findUnique({
+            where: { token: tokenHash },
+            select: { id: true, familyId: true, revokedAt: true, userId: true },
+        });
+        // Step 3: Reuse Detection
+        if (!storedToken || storedToken.revokedAt !== null) {
+            if (storedToken?.familyId) {
+                await prisma_1.prisma.refreshToken.updateMany({
+                    where: { familyId: storedToken.familyId },
+                    data: { revokedAt: new Date() },
+                });
+                console.warn(`[SECURITY] Refresh token reuse detected! Family ${storedToken.familyId} revoked.`);
+            }
+            res.status(401).json({
+                success: false,
+                code: "TOKEN_REUSE_DETECTED",
+                message: "Token sudah tidak berlaku. Silakan login kembali.",
+            });
+            return;
+        }
+        // Step 4: Verify user exists
         const user = await prisma_1.prisma.user.findUnique({
-            where: { id: payload.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                nipNis: true,
-                username: true,
-                role: true,
-                force_change_password: true,
-            },
+            where: { id: storedToken.userId },
+            select: { id: true, name: true, email: true, nipNis: true, username: true, role: true, force_change_password: true },
         });
         if (!user) {
-            res.status(401).json({
-                success: false,
-                message: "Sesi tidak valid. Silakan login kembali.",
+            await prisma_1.prisma.refreshToken.updateMany({
+                where: { userId: storedToken.userId },
+                data: { revokedAt: new Date() },
             });
+            res.status(401).json({ success: false, code: "USER_NOT_FOUND", message: "Sesi tidak valid. Silakan login kembali." });
             return;
         }
+        // Step 5: Rotate token
+        const newTokenId = (0, jwt_1.generateTokenId)();
+        const newRefreshToken = (0, jwt_1.signRefreshToken)({ id: user.id, role: user.role }, newTokenId);
+        const newTokenHash = (0, jwt_1.hashToken)(newRefreshToken);
+        const refreshExpiryMs = parseDuration(process.env.JWT_REFRESH_EXPIRES_IN || "30d");
+        const expiresAt = new Date(Date.now() + refreshExpiryMs);
+        await prisma_1.prisma.$transaction([
+            prisma_1.prisma.refreshToken.update({
+                where: { id: storedToken.id },
+                data: { revokedAt: new Date() },
+            }),
+            prisma_1.prisma.refreshToken.create({
+                data: { token: newTokenHash, familyId: storedToken.familyId, userId: user.id, expiresAt },
+            }),
+        ]);
         const nextAccessToken = (0, jwt_1.signAccessToken)({ id: user.id, role: user.role });
-        const nextRefreshToken = (0, jwt_1.signRefreshToken)({ id: user.id, role: user.role });
         res.json({
             success: true,
             message: "Token berhasil diperbarui",
-            data: {
-                token: nextAccessToken,
-                refreshToken: nextRefreshToken,
-                user,
-            },
+            data: { token: nextAccessToken, refreshToken: newRefreshToken, user },
         });
     }
     catch (error) {
-        const isExpired = error instanceof Error && error.name === "TokenExpiredError";
+        console.error("[Auth] Refresh error:", error);
         res.status(401).json({
             success: false,
-            message: isExpired
-                ? "Refresh token sudah kadaluarsa. Silakan login kembali."
-                : "Refresh token tidak valid.",
+            code: "REFRESH_FAILED",
+            message: "Gagal memperbarui token. Silakan login kembali.",
         });
     }
 });
+// ──────────────────────────────────────────────
+// POST /api/auth/logout
+// Revoke semua refresh token milik user yang sedang login
+// ──────────────────────────────────────────────
+router.post("/logout", auth_1.verifyJWT, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const result = await prisma_1.prisma.refreshToken.updateMany({
+            where: { userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+        });
+        console.log(`[Auth] User ${userId} logout - revoked ${result.count} refresh token(s)`);
+        res.json({ success: true, message: "Logout berhasil" });
+    }
+    catch (error) {
+        console.error("[Auth] Logout error:", error);
+        res.status(500).json({ success: false, message: "Terjadi kesalahan server. Silakan coba lagi nanti." });
+    }
+});
+// ──────────────────────────────────────────────
+// Helper: Parse duration string to milliseconds
+// Supports formats: "30d", "12h", "45m", "7d"
+// ──────────────────────────────────────────────
+function parseDuration(duration) {
+    const match = duration.match(/^(\d+)\s*(d|h|m|s)?$/i);
+    if (!match)
+        return 30 * 24 * 60 * 60 * 1000;
+    const value = parseInt(match[1], 10);
+    const unit = (match[2] || "d").toLowerCase();
+    switch (unit) {
+        case "d": return value * 24 * 60 * 60 * 1000;
+        case "h": return value * 60 * 60 * 1000;
+        case "m": return value * 60 * 1000;
+        case "s": return value * 1000;
+        default: return value * 24 * 60 * 60 * 1000;
+    }
+}
 exports.default = router;
 //# sourceMappingURL=auth.route.js.map

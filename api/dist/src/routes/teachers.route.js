@@ -37,7 +37,21 @@ router.get("/", auth_1.verifyJWT, async (req, res) => {
         }
         const teachers = await prisma_1.prisma.teacher.findMany({
             where,
-            include: { user: { select: { userCode: true } }, subjects: { select: { id: true, name: true } } },
+            select: {
+                id: true,
+                nip: true,
+                name: true,
+                gender: true,
+                email: true,
+                phone: true,
+                subject: true,
+                status: true,
+                deletedAt: true,
+                createdAt: true,
+                updatedAt: true,
+                user: { select: { userCode: true } },
+                subjects: { select: { id: true, name: true } },
+            },
             orderBy: { name: "asc" },
         });
         const result = teachers.map((t) => ({

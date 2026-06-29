@@ -3,7 +3,16 @@ import crypto from "crypto";
 
 // JWT_SECRET is validated at startup in index.ts - safe to use non-null assertion
 const ACCESS_SECRET: string = process.env.JWT_SECRET!;
-const REFRESH_SECRET: string = process.env.JWT_REFRESH_SECRET || ACCESS_SECRET;
+const REFRESH_SECRET: string = (() => {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (!secret) {
+    throw new Error(
+      "JWT_REFRESH_SECRET tidak di-set di environment variables. " +
+      "Tambahkan JWT_REFRESH_SECRET ke file .env"
+    );
+  }
+  return secret;
+})();
 const ACCESS_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "12h";
 const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "30d";
 

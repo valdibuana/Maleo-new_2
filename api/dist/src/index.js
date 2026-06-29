@@ -62,7 +62,7 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(logger_1.requestLogger); // Request logging for audit trail
-app.use((0, helmet_1.default)({ crossOriginResourcePolicy: { policy: "cross-origin" } })); // Security headers
+app.use((0, helmet_1.default)({ crossOriginEmbedderPolicy: false })); // Security headers
 // CORS — support comma-separated list of allowed origins
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
     .split(",")

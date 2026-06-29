@@ -404,6 +404,23 @@ router.post("/generate", teacherGuard, async (req, res) => {
             });
         }
         const meetings = Math.min(Math.max(Number(totalMeetings), 1), 16);
+        // Validasi grade level: class level harus sesuai dengan subject gradeLevel
+        const [subjectData, classData] = await Promise.all([
+            prisma_1.prisma.subject.findUnique({ where: { id: Number(subjectId) }, select: { gradeLevel: true, name: true } }),
+            prisma_1.prisma.class.findUnique({ where: { id: Number(classId) }, select: { level: true, name: true } }),
+        ]);
+        if (!subjectData) {
+            return res.status(404).json({ success: false, message: "Mata pelajaran tidak ditemukan." });
+        }
+        if (!classData) {
+            return res.status(404).json({ success: false, message: "Kelas tidak ditemukan." });
+        }
+        if (classData.level !== subjectData.gradeLevel) {
+            return res.status(400).json({
+                success: false,
+                message: `Ketidaksesuaian tingkat: Mapel "${subjectData.name}" untuk tingkat ${subjectData.gradeLevel}, tetapi kelas "${classData.name}" adalah tingkat ${classData.level}.`,
+            });
+        }
         // Cek duplikat ATP
         const existing = await prisma_1.prisma.aTP.findFirst({
             where: {

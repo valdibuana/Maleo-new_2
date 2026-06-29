@@ -37,8 +37,9 @@ interface AttendanceRecord {
   studentId: number;
   nis: string;
   name: string;
-  status: "hadir" | "izin" | "sakit" | "alpa";
-  note?: string;
+  status: "hadir" | "izin" | "sakit" | "alpa" | null;
+  note?: string | null;
+  hasRecord?: boolean;
 }
 
 interface StudentAttendance {
@@ -141,11 +142,14 @@ export default function AttendanceInputPage() {
       });
       
       if (response.success) {
-        // Defaulting all to 'hadir' if no previous record exists or as specified
+        // Status null = belum diinput guru, jangan default ke "hadir"
         const records = response.data.map((s: any) => ({
-          ...s,
-          status: s.status || "hadir",
-          note: s.note || ""
+          studentId: s.studentId,
+          nis: s.nis,
+          name: s.name,
+          status: s.status, // null jika belum diinput
+          note: s.note || "",
+          hasRecord: s.hasRecord ?? false,
         }));
         setStudentRecords(records);
       }
@@ -274,6 +278,7 @@ export default function AttendanceInputPage() {
     izin: studentRecords.filter(r => r.status === "izin").length,
     sakit: studentRecords.filter(r => r.status === "sakit").length,
     alpa: studentRecords.filter(r => r.status === "alpa").length,
+    belumDiinput: studentRecords.filter(r => r.status === null).length,
   };
 
   const studentStats = {
@@ -366,7 +371,7 @@ export default function AttendanceInputPage() {
           {studentRecords.length > 0 ? (
             <div className="space-y-6 animate-in fade-in duration-500">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <Card className="p-4 border-l-4 border-l-emerald-600 shadow-sm bg-brand/10/30">
                   <p className="text-[10px] font-bold text-brand uppercase tracking-wider mb-1">Hadir</p>
                   <h3 className="text-2xl font-bold text-brand tracking-tight">{stats.hadir}</h3>
@@ -382,6 +387,10 @@ export default function AttendanceInputPage() {
                 <Card className="p-4 border-l-4 border-l-rose-600 shadow-sm bg-rose-50/30">
                   <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider mb-1">Alpa</p>
                   <h3 className="text-2xl font-bold text-rose-900 tracking-tight">{stats.alpa}</h3>
+                </Card>
+                <Card className="p-4 border-l-4 border-l-gray-400 shadow-sm bg-gray-50/30">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Belum Diinput</p>
+                  <h3 className="text-2xl font-bold text-gray-600 tracking-tight">{stats.belumDiinput}</h3>
                 </Card>
               </div>
 
@@ -419,35 +428,63 @@ export default function AttendanceInputPage() {
                             <div className="text-sm font-bold text-foreground">{record.name}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-1">
-                              <StatusButton 
-                                active={record.status === "hadir"} 
-                                type="hadir" 
-                                onClick={() => handleStatusChange(record.studentId, "hadir")} 
-                              />
-                              <StatusButton 
-                                active={record.status === "izin"} 
-                                type="izin" 
-                                onClick={() => handleStatusChange(record.studentId, "izin")} 
-                              />
-                              <StatusButton 
-                                active={record.status === "sakit"} 
-                                type="sakit" 
-                                onClick={() => handleStatusChange(record.studentId, "sakit")} 
-                              />
-                              <StatusButton 
-                                active={record.status === "alpa"} 
-                                type="alpa" 
-                                onClick={() => handleStatusChange(record.studentId, "alpa")} 
-                              />
-                            </div>
+                            {record.status === null ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Belum Diinput</span>
+                                <div className="flex items-center justify-center gap-1">
+                                  <StatusButton 
+                                    active={false} 
+                                    type="hadir" 
+                                    onClick={() => handleStatusChange(record.studentId, "hadir")} 
+                                  />
+                                  <StatusButton 
+                                    active={false} 
+                                    type="izin" 
+                                    onClick={() => handleStatusChange(record.studentId, "izin")} 
+                                  />
+                                  <StatusButton 
+                                    active={false} 
+                                    type="sakit" 
+                                    onClick={() => handleStatusChange(record.studentId, "sakit")} 
+                                  />
+                                  <StatusButton 
+                                    active={false} 
+                                    type="alpa" 
+                                    onClick={() => handleStatusChange(record.studentId, "alpa")} 
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <StatusButton 
+                                  active={record.status === "hadir"} 
+                                  type="hadir" 
+                                  onClick={() => handleStatusChange(record.studentId, "hadir")} 
+                                />
+                                <StatusButton 
+                                  active={record.status === "izin"} 
+                                  type="izin" 
+                                  onClick={() => handleStatusChange(record.studentId, "izin")} 
+                                />
+                                <StatusButton 
+                                  active={record.status === "sakit"} 
+                                  type="sakit" 
+                                  onClick={() => handleStatusChange(record.studentId, "sakit")} 
+                                />
+                                <StatusButton 
+                                  active={record.status === "alpa"} 
+                                  type="alpa" 
+                                  onClick={() => handleStatusChange(record.studentId, "alpa")} 
+                                />
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4">
                             <input
                               type="text"
                               placeholder="Catatan..."
                               className="w-full bg-card border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
-                              value={record.note}
+                              value={record.note ?? ""}
                               onChange={(e) => handleNoteChange(record.studentId, e.target.value)}
                             />
                           </td>

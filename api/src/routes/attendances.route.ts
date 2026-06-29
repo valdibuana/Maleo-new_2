@@ -88,13 +88,14 @@ router.get("/by-class", verifyJWT, async (req: AuthRequest, res: Response) => {
     });
 
     const results = students.map((s) => {
-      const attendance = s.attendances[0]; // will be undefined if no record exists
+      const attendance = s.attendances[0];
       return {
         studentId: s.id,
         nis: s.nis,
         name: s.name,
-        status: attendance ? attendance.status : "hadir", // Default to 'hadir'
-        note: attendance ? attendance.note : "",
+        status: attendance?.status ?? null,
+        note: attendance?.note ?? null,
+        hasRecord: !!attendance,
       };
     });
 

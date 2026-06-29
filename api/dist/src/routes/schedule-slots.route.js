@@ -44,18 +44,20 @@ router.get("/template", async (req, res) => {
             cell.border = thinBorder;
         });
         // ── Time slots with example data ──────────────────────────────────────────
+        // NOTE on time format: Using colon format (07:30-08:00) to match frontend lookup.
+        // The import endpoint normalizes dots -> colons as fallback for user-typed files.
         const timeSlots = [
-            { time: '07.30-08.00', isBreak: false, ex: ['Upacara Bendera', 'Literasi (Sahabat Pena)', 'Sholat Dhuha & Tadarus', 'Al-Masurat', 'Tadarus (Surat Yasin)'] },
-            { time: '08.00-08.35', isBreak: false, ex: ['B. Indonesia (Bu Hani)', 'Sosiologi (Bu Trisna)', 'Geografi (Pak Hardjono)', 'MTK', 'Lit.Digital (Bu Tinuk)'] },
-            { time: '08.35-09.10', isBreak: false, ex: ['B. Indonesia (Bu Hani)', 'Sosiologi (Bu Trisna)', 'Geografi (Pak Hardjono)', 'MTK', 'Lit.Digital (Bu Tinuk)'] },
-            { time: '09.10-09.45', isBreak: false, ex: ['Sejarah (Pak Khairul)', 'AP (Bu Avie)', 'TIK (Bu Neneng)', 'Art (Pak Latief)', 'Kom.dig (Pak Jamal)'] },
-            { time: '09.45-10.20', isBreak: false, ex: ['Sejarah (Pak Khairul)', 'AP (Bu Avie)', 'TIK (Bu Neneng)', 'Art (Pak Latief)', 'Kom.dig (Pak Jamal)'] },
-            { time: '10.20-10.30', isBreak: true, breakLabel: 'ISTIRAHAT' },
-            { time: '10.30-11.05', isBreak: false, ex: ['Ekonomi (Pak Djoen)', 'PKN (Pak Irwan)', 'PAI (Pak Afrizal)', 'TIK Art Digital (Bu Neneng)', 'B.Inggris (Pak Reza)'] },
-            { time: '11.05-11.40', isBreak: false, ex: ['Ekonomi (Pak Djoen)', 'PKN (Pak Irwan)', 'PAI (Pak Afrizal)', 'TIK Art Digital (Bu Neneng)', 'B.Inggris (Pak Reza)'] },
-            { time: '11.40-13.00', isBreak: true, breakLabel: 'ISHOMA (Istirahat, Sholat, dan Makan)' },
-            { time: '13.00-13.35', isBreak: false, ex: ['PJOK (Pak Deni)', 'Bola', 'PKWU (Bu Nia)', 'GURU TAMU', 'EKSKUL KESENIAN'] },
-            { time: '13.35-14.20', isBreak: false, ex: ['PJOK (Pak Deni)', 'Bola', 'PKWU (Bu Nia)', 'GURU TAMU', 'EKSKUL KESENIAN'] },
+            { time: '07:30-08:00', isBreak: false, ex: ['Upacara Bendera', 'Literasi (Sahabat Pena)', 'Sholat Dhuha & Tadarus', 'Al-Masurat', 'Tadarus (Surat Yasin)'] },
+            { time: '08:00-08:35', isBreak: false, ex: ['B. Indonesia (Bu Hani)', 'Sosiologi (Bu Trisna)', 'Geografi (Pak Hardjono)', 'MTK', 'Lit.Digital (Bu Tinuk)'] },
+            { time: '08:35-09:10', isBreak: false, ex: ['B. Indonesia (Bu Hani)', 'Sosiologi (Bu Trisna)', 'Geografi (Pak Hardjono)', 'MTK', 'Lit.Digital (Bu Tinuk)'] },
+            { time: '09:10-09:45', isBreak: false, ex: ['Sejarah (Pak Khairul)', 'AP (Bu Avie)', 'TIK (Bu Neneng)', 'Art (Pak Latief)', 'Kom.dig (Pak Jamal)'] },
+            { time: '09:45-10:20', isBreak: false, ex: ['Sejarah (Pak Khairul)', 'AP (Bu Avie)', 'TIK (Bu Neneng)', 'Art (Pak Latief)', 'Kom.dig (Pak Jamal)'] },
+            { time: '10:20-10:30', isBreak: true, breakLabel: 'ISTIRAHAT' },
+            { time: '10:30-11:05', isBreak: false, ex: ['Ekonomi (Pak Djoen)', 'PKN (Pak Irwan)', 'PAI (Pak Afrizal)', 'TIK Art Digital (Bu Neneng)', 'B.Inggris (Pak Reza)'] },
+            { time: '11:05-11:40', isBreak: false, ex: ['Ekonomi (Pak Djoen)', 'PKN (Pak Irwan)', 'PAI (Pak Afrizal)', 'TIK Art Digital (Bu Neneng)', 'B.Inggris (Pak Reza)'] },
+            { time: '11:40-13:00', isBreak: true, breakLabel: 'ISHOMA (Istirahat, Sholat, dan Makan)' },
+            { time: '13:00-13:35', isBreak: false, ex: ['PJOK (Pak Deni)', 'Bola', 'PKWU (Bu Nia)', 'GURU TAMU', 'EKSKUL KESENIAN'] },
+            { time: '13:35-14:20', isBreak: false, ex: ['PJOK (Pak Deni)', 'Bola', 'PKWU (Bu Nia)', 'GURU TAMU', 'EKSKUL KESENIAN'] },
         ];
         timeSlots.forEach((slot) => {
             if (slot.isBreak) {
@@ -135,8 +137,12 @@ const identityGuard = async (req, res, next) => {
         else if (user.role === "guardian" && user.nipNis) { // Assume nipNis is used or find children via guardian relation
             const guardianUser = await prisma_1.prisma.user.findUnique({ where: { id: req.user?.id }, include: { guardian: { include: { students: { include: { class: true } } } } } });
             if (guardianUser?.guardian?.students.length) {
-                // Defaulting to the first child's class level for simplicity, can be expanded if needed
-                req.classLevel = guardianUser.guardian.students[0].class?.level;
+                // Get all unique class levels the guardian's children are in
+                const classLevels = [...new Set(guardianUser.guardian.students.map(s => s.class?.level).filter(Boolean))];
+                if (classLevels.length > 0) {
+                    req.classLevels = classLevels;
+                    req.classLevel = classLevels[0]; // fallback to first class level
+                }
             }
         }
         next();
@@ -177,7 +183,12 @@ router.get("/", async (req, res) => {
         }
         else if (role === "student" || role === "guardian") {
             // Students and guardians see slots for their class level
-            where.classLevel = req.classLevel;
+            if (role === "guardian" && req.classLevels) {
+                where.classLevel = { in: req.classLevels };
+            }
+            else {
+                where.classLevel = req.classLevel;
+            }
             where.isPublished = true;
         }
         // admin and kepala_sekolah see all based on filters
@@ -228,6 +239,112 @@ router.get("/my-schedule", (0, role_1.checkRole)("teacher"), async (req, res) =>
     }
     catch (error) {
         res.status(500).json({ success: false, message: "Gagal mengambil jadwal Anda." });
+    }
+});
+// ─── NEW: Export endpoint ──────────────────────────────────────────────────
+// GET /api/schedule-slots/export?classLevel=N
+// IMPORTANT: MUST be placed BEFORE /class/:classLevel to avoid route collision.
+// If placed after, Express will interpret "export" as :classLevel param value.
+router.get("/export", (0, role_1.checkRole)("admin", "kepala_sekolah"), async (req, res) => {
+    try {
+        const { classLevel } = req.query;
+        if (!classLevel)
+            return res.status(400).json({ success: false, message: "Tingkat kelas wajib diisi" });
+        const targetLevel = Number(classLevel);
+        const activeYear = await prisma_1.prisma.academicYear.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'desc' } });
+        if (!activeYear)
+            return res.status(404).json({ success: false, message: "Tahun akademik aktif tidak ditemukan" });
+        const slots = await prisma_1.prisma.scheduleSlot.findMany({
+            where: { academicYearId: activeYear.id, classLevel: targetLevel },
+            orderBy: [{ day: "asc" }, { timeSlot: "asc" }]
+        });
+        const exceljs = require("exceljs");
+        const workbook = new exceljs.Workbook();
+        const sheet = workbook.addWorksheet(`Jadwal KBM Kelas ${targetLevel}`);
+        const BLUE = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+        const HEADER_BG = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFDBFE' } };
+        const WHITE = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        const thinBorder = {
+            top: { style: 'thin' }, bottom: { style: 'thin' },
+            left: { style: 'thin' }, right: { style: 'thin' }
+        };
+        const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+        // Get unique time slots in order
+        const timeSlots = [...new Set(slots.map(s => s.timeSlot))].sort();
+        // Title
+        sheet.mergeCells('A1:F1');
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = `JADWAL KBM KELAS ${targetLevel}`;
+        titleCell.font = { bold: true, size: 13, name: 'Calibri' };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        titleCell.fill = HEADER_BG;
+        titleCell.border = thinBorder;
+        sheet.getRow(1).height = 24;
+        // Header row
+        const headerRow = sheet.addRow(['Waktu', ...days]);
+        headerRow.height = 20;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, size: 10, name: 'Calibri' };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.fill = HEADER_BG;
+            cell.border = thinBorder;
+        });
+        // Group slots by timeSlot
+        const slotsByTime = {};
+        slots.forEach(s => {
+            if (!slotsByTime[s.timeSlot])
+                slotsByTime[s.timeSlot] = {};
+            if (s.slotType === "break") {
+                slotsByTime[s.timeSlot][s.day] = s.subjectName || "";
+            }
+            else {
+                const label = s.teacherName ? `${s.subjectName} (${s.teacherName})` : (s.subjectName || "");
+                slotsByTime[s.timeSlot][s.day] = label;
+            }
+        });
+        // Data rows
+        timeSlots.forEach((time) => {
+            const dayData = slotsByTime[time] || {};
+            const dayValues = days.map(d => dayData[d] || "");
+            const row = sheet.addRow([time, ...dayValues]);
+            // Check if this is a break row
+            const isBreak = dayValues.some(v => v.toUpperCase().includes("ISTIRAHAT") || v.toUpperCase().includes("ISHOMA"));
+            if (isBreak) {
+                row.height = 18;
+                row.eachCell((cell, colNum) => {
+                    cell.font = { bold: true, size: 9, name: 'Calibri', color: { argb: 'FFFFFFFF' } };
+                    cell.fill = BLUE;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = thinBorder;
+                });
+            }
+            else {
+                row.height = 30;
+                row.eachCell((cell, colNum) => {
+                    cell.font = { size: 9, name: 'Calibri' };
+                    cell.alignment = { horizontal: colNum === 1 ? 'center' : 'center', vertical: 'middle', wrapText: true };
+                    cell.fill = WHITE;
+                    cell.border = thinBorder;
+                    if (colNum === 1)
+                        cell.font = { ...cell.font, bold: true };
+                });
+            }
+        });
+        // Column widths
+        sheet.getColumn(1).width = 14;
+        sheet.getColumn(2).width = 22;
+        sheet.getColumn(3).width = 22;
+        sheet.getColumn(4).width = 22;
+        sheet.getColumn(5).width = 22;
+        sheet.getColumn(6).width = 22;
+        const buffer = await workbook.xlsx.writeBuffer();
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_KBM_Kelas_${targetLevel}.xlsx"`);
+        res.send(buffer);
+    }
+    catch (error) {
+        console.error("[ScheduleSlots] Export error:", error);
+        res.status(500).json({ success: false, message: "Gagal mengexport jadwal." });
     }
 });
 // GET /api/schedule-slots/class/:classLevel
@@ -295,6 +412,30 @@ router.get("/confirmation-status", (0, role_1.checkRole)("admin", "kepala_sekola
         res.status(500).json({ success: false, message: "Gagal mengambil status konfirmasi." });
     }
 });
+// ─── PUT /publish MUST be placed BEFORE /:id to avoid route collision ──────
+// If /:id comes first, Express will match "publish" as a param value (id="publish")
+// which will cause a 404 error when trying to find a slot with id=NaN.
+// PUT /api/schedule-slots/publish
+router.put("/publish", (0, role_1.checkRole)("admin", "kepala_sekolah"), async (req, res) => {
+    try {
+        const { classLevel, isPublished } = req.body;
+        if (!classLevel)
+            return res.status(400).json({ success: false, message: "Tingkat kelas wajib diisi" });
+        const activeYear = await prisma_1.prisma.academicYear.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'desc' } });
+        if (!activeYear)
+            return res.status(404).json({ success: false, message: "Tahun akademik aktif tidak ditemukan" });
+        const updated = await prisma_1.prisma.scheduleSlot.updateMany({
+            where: { classLevel: Number(classLevel), academicYearId: activeYear.id },
+            data: { isPublished: Boolean(isPublished) }
+        });
+        res.json({ success: true, message: `Status publish kelas ${classLevel} berhasil diubah. (${updated.count} slot diperbarui)` });
+    }
+    catch (error) {
+        console.error("[ScheduleSlots] Publish error:", error);
+        res.status(500).json({ success: false, message: "Terjadi kesalahan saat mengubah status jadwal" });
+    }
+});
+// ─── CRUD: Update (single slot) ──────────────────────────────────────────────
 // PUT /api/schedule-slots/:id (Admin only)
 router.put("/:id", (0, role_1.checkRole)("admin"), async (req, res) => {
     try {
@@ -492,6 +633,9 @@ router.post("/import", (0, role_1.checkRole)("admin", "kepala_sekolah"), upload.
             const time = row.getCell(1).text?.trim();
             if (!time)
                 return;
+            // NORMALIZE timeSlot: replace dots with colons to match frontend format
+            // (e.g., "07.30-08.00" → "07:30-08:00")
+            const normalizedTime = time.replace(/\./g, ':');
             // Check if this is a break row (ISTIRAHAT / ISHOMA)
             // In the template, break rows have merged cells B-F with label centered
             // We check any cell in that row for the keyword
@@ -501,20 +645,21 @@ router.post("/import", (0, role_1.checkRole)("admin", "kepala_sekolah"), upload.
                 time.toUpperCase().includes("ISTIRAHAT") ||
                 time.toUpperCase().includes("ISHOMA");
             if (isBreakRow) {
-                // Only push ONE break slot (not 5). Use "Senin" as canonical day placeholder.
-                // We skip per-day iteration for break rows.
-                newSlots.push({
-                    academicYearId: activeYear.id,
-                    classLevel: targetLevel,
-                    day: "Senin", // canonical placeholder — break applies to all days
-                    timeSlot: time,
-                    jpLabel: firstDayCell || time,
-                    slotType: "break",
-                    subjectName: firstDayCell || time,
-                    teacherName: null,
-                    teacherId: null,
-                    isConfirmed: false,
-                    isPublished: false
+                // Create break slots for ALL days so they appear in day-filtered queries
+                days.forEach((dayName) => {
+                    newSlots.push({
+                        academicYearId: activeYear.id,
+                        classLevel: targetLevel,
+                        day: dayName,
+                        timeSlot: normalizedTime,
+                        jpLabel: firstDayCell || normalizedTime,
+                        slotType: "break",
+                        subjectName: firstDayCell || normalizedTime,
+                        teacherName: null,
+                        teacherId: null,
+                        isConfirmed: false,
+                        isPublished: false
+                    });
                 });
                 return; // skip the per-day loop below
             }
@@ -553,7 +698,7 @@ router.post("/import", (0, role_1.checkRole)("admin", "kepala_sekolah"), upload.
                     academicYearId: activeYear.id,
                     classLevel: targetLevel,
                     day: dayName,
-                    timeSlot: time,
+                    timeSlot: normalizedTime,
                     jpLabel: `JP ${rowNumber - 2}`,
                     slotType,
                     subjectName,
@@ -602,26 +747,6 @@ router.post("/import", (0, role_1.checkRole)("admin", "kepala_sekolah"), upload.
     catch (error) {
         console.error("[ScheduleSlots] Import error:", error);
         res.status(500).json({ success: false, message: "Terjadi kesalahan saat import jadwal" });
-    }
-});
-// PUT /api/schedule-slots/publish
-router.put("/publish", (0, role_1.checkRole)("admin", "kepala_sekolah"), async (req, res) => {
-    try {
-        const { classLevel, isPublished } = req.body;
-        if (!classLevel)
-            return res.status(400).json({ success: false, message: "Tingkat kelas wajib diisi" });
-        const activeYear = await prisma_1.prisma.academicYear.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'desc' } });
-        if (!activeYear)
-            return res.status(404).json({ success: false, message: "Tahun akademik aktif tidak ditemukan" });
-        const updated = await prisma_1.prisma.scheduleSlot.updateMany({
-            where: { classLevel: Number(classLevel), academicYearId: activeYear.id },
-            data: { isPublished: Boolean(isPublished) }
-        });
-        res.json({ success: true, message: `Status publish kelas ${classLevel} berhasil diubah. (${updated.count} slot diperbarui)` });
-    }
-    catch (error) {
-        console.error("[ScheduleSlots] Publish error:", error);
-        res.status(500).json({ success: false, message: "Terjadi kesalahan saat mengubah status jadwal" });
     }
 });
 exports.default = router;

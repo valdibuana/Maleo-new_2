@@ -18,6 +18,23 @@ const multer_1 = __importDefault(require("multer"));
 const xlsx_1 = __importDefault(require("xlsx"));
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
+// Simple in-memory cache for total counts to avoid expensive COUNT(*) queries
+const totalCountCache = new Map();
+const CACHE_TTL_MS = 30000; // 30 seconds
+const cacheKey = (role, search, className) => `students:total:${role}:${search ?? ""}:${className ?? ""}`;
+const getCachedTotal = (key) => {
+    const entry = totalCountCache.get(key);
+    if (!entry)
+        return null;
+    if (Date.now() > entry.expiresAt) {
+        totalCountCache.delete(key);
+        return null;
+    }
+    return entry.count;
+};
+const setCachedTotal = (key, count) => {
+    totalCountCache.set(key, { count, expiresAt: Date.now() + CACHE_TTL_MS });
+};
 const normalizeClassName = (value) => {
     return value.trim().replace(/\s+/g, " ").toLowerCase();
 };
@@ -298,20 +315,32 @@ router.get("/", auth_1.verifyJWT, async (req, res) => {
         const isAdminOrStaff = (0, roles_1.isStaffRole)(role) || role === roles_1.ROLES.TEACHER;
         const { page, limit, skip } = (0, pagination_1.parsePagination)(req.query);
         const fields = (0, fields_1.parseFields)(req.query);
-        const [students, total] = await Promise.all([
-            prisma_1.prisma.student.findMany({
-                where,
-                include: {
-                    class: { select: { id: true, name: true } },
-                    guardians: isAdminOrStaff ? { select: { id: true, name: true } } : false,
-                    user: isAdminOrStaff ? { select: { userCode: true } } : false,
-                },
-                orderBy: { name: "asc" },
-                skip,
-                take: limit,
-            }),
-            prisma_1.prisma.student.count({ where }),
-        ]);
+        // Cursor-based pagination: use last item id as cursor instead of OFFSET
+        const rawCursor = req.query.cursor;
+        const cursor = rawCursor ? Number(rawCursor) : undefined;
+        const isFirstPage = !rawCursor || Number.isNaN(cursor);
+        const students = await prisma_1.prisma.student.findMany({
+            where,
+            include: {
+                class: { select: { id: true, name: true } },
+                guardians: isAdminOrStaff ? { select: { id: true, name: true } } : false,
+                user: isAdminOrStaff ? { select: { userCode: true } } : false,
+            },
+            orderBy: { id: "asc" }, // stable cursor requires deterministic order
+            skip: isFirstPage ? undefined : 1, // skip the cursor itself
+            take: limit,
+            ...(cursor ? { cursor: { id: cursor } } : {}),
+        });
+        // Total count: only compute on first page, then cache
+        const key = cacheKey(role, search, className);
+        let total;
+        if (isFirstPage) {
+            total = await prisma_1.prisma.student.count({ where });
+            setCachedTotal(key, total);
+        }
+        else {
+            total = getCachedTotal(key) ?? 0;
+        }
         const result = students.map((s) => ({
             id: s.id,
             nis: s.nis,

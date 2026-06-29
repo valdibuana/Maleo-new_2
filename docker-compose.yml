@@ -36,7 +36,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/maleo
       JWT_SECRET: replace_with_strong_secret_for_production
       JWT_EXPIRES_IN: 24h
-      JWT_REFRESH_SECRET: replace_with_strong_refresh_secret_for_production
+      JWT_REFRESH_SECRET: 616599fa0e31d025b13d65679f9a35ab009c1b8f6417c771cbd04846622e435e
       JWT_REFRESH_EXPIRES_IN: 30d
       CLIENT_URL: http://localhost:3000
       UPLOAD_DIR: ./uploads

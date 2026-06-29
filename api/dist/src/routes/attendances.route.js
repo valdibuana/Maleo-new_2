@@ -38,6 +38,28 @@ router.get("/by-class", auth_1.verifyJWT, async (req, res) => {
             return;
         }
         const cId = Number(classId);
+        const { role } = req.user;
+        // Teacher: only allow classes they actually teach OR are homeroom teacher
+        if (role === "teacher") {
+            const teacher = await prisma_1.prisma.teacher.findFirst({
+                where: { user: { id: req.user.id } },
+                include: { homeroomClasses: { select: { id: true } } }
+            });
+            if (!teacher) {
+                return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan." });
+            }
+            // Check if teacher has the class in their schedule OR is homeroom teacher
+            const [scheduleMatch, isHomeroom] = await Promise.all([
+                prisma_1.prisma.schedule.findFirst({ where: { teacherId: teacher.id, classId: cId }, select: { id: true } }),
+                Promise.resolve(teacher.homeroomClasses.some(c => c.id === cId))
+            ]);
+            if (!scheduleMatch && !isHomeroom) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Akses ditolak. Anda hanya dapat mengakses absensi kelas yang Anda ajar atau yang Anda wali."
+                });
+            }
+        }
         const targetDate = new Date(String(date));
         targetDate.setHours(0, 0, 0, 0);
         const nextDay = new Date(targetDate);
@@ -57,13 +79,14 @@ router.get("/by-class", auth_1.verifyJWT, async (req, res) => {
             orderBy: { name: "asc" },
         });
         const results = students.map((s) => {
-            const attendance = s.attendances[0]; // will be undefined if no record exists
+            const attendance = s.attendances[0];
             return {
                 studentId: s.id,
                 nis: s.nis,
                 name: s.name,
-                status: attendance ? attendance.status : "hadir", // Default to 'hadir'
-                note: attendance ? attendance.note : "",
+                status: attendance?.status ?? null,
+                note: attendance?.note ?? null,
+                hasRecord: !!attendance,
             };
         });
         res.json({ success: true, data: results });
@@ -77,10 +100,31 @@ router.get("/by-class", auth_1.verifyJWT, async (req, res) => {
 router.post("/bulk", auth_1.verifyJWT, (0, role_1.checkRole)("admin", "teacher"), (0, validate_1.validate)(bulkSchema), async (req, res) => {
     try {
         const { classId, date, records } = req.body;
+        const { role } = req.user;
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
         const nextDay = new Date(targetDate);
         nextDay.setDate(targetDate.getDate() + 1);
+        // Teacher: only allow saving attendance for their own classes
+        if (role === "teacher") {
+            const teacher = await prisma_1.prisma.teacher.findFirst({
+                where: { user: { id: req.user.id } },
+                include: { homeroomClasses: { select: { id: true } } }
+            });
+            if (!teacher) {
+                return res.status(403).json({ success: false, message: "Profil guru tidak ditemukan." });
+            }
+            const [scheduleMatch, isHomeroom] = await Promise.all([
+                prisma_1.prisma.schedule.findFirst({ where: { teacherId: teacher.id, classId }, select: { id: true } }),
+                Promise.resolve(teacher.homeroomClasses.some(c => c.id === classId))
+            ]);
+            if (!scheduleMatch && !isHomeroom) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Akses ditolak. Anda hanya dapat menyimpan absensi untuk kelas yang Anda ajar atau yang Anda wali."
+                });
+            }
+        }
         // Cek apakah data kehadiran sudah pernah diinput untuk tanggal dan kelas ini
         const existingRecord = await prisma_1.prisma.attendance.findFirst({
             where: {

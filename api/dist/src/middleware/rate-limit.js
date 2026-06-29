@@ -20,12 +20,13 @@ exports.apiLimiter = (0, express_rate_limit_1.default)({
     },
 });
 /**
- * Strict limiter for authentication endpoints — 5 attempts per 15 minutes per IP.
+ * Auth limiter for authentication endpoints — 15 attempts per 15 minutes per IP.
  * Applied to /api/auth/login and /api/auth/forgot-password.
+ * Allows for legitimate typos while preventing brute force attacks.
  */
 exports.authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 15,
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
