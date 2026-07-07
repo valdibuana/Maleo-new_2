@@ -17,7 +17,7 @@ const subjectSchema = zod_1.z.object({
 router.get("/", auth_1.verifyJWT, async (req, res) => {
     try {
         const { search } = req.query;
-        const where = {};
+        const where = { deletedAt: null };
         // Hard filtering for teacher role
         const reqUser = req.user;
         if (reqUser?.role === "teacher") {
@@ -101,8 +101,8 @@ router.delete("/:id", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
                 message: "Tidak dapat menghapus mata pelajaran: Masih terdapat data Jadwal atau Nilai yang terikat dengan mapel ini."
             });
         }
-        await prisma_1.prisma.subject.delete({ where: { id } });
-        res.json({ success: true, message: "Mapel berhasil dihapus" });
+        await prisma_1.prisma.subject.update({ where: { id }, data: { deletedAt: new Date() } });
+        res.json({ success: true, message: "Mapel dipindahkan ke Recycle Bin" });
     }
     catch (error) {
         if (error.code === "P2025") {

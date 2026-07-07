@@ -256,18 +256,20 @@ router.delete(
       const guardianId = Number(req.params.id);
 
       await prisma.$transaction(async (tx) => {
-        // Hapus user yang terkait terlebih dahulu
-        await tx.user.deleteMany({
-          where: { guardianId },
-        });
-
-        // Hapus guardian
-        await tx.guardian.delete({
+        // Soft delete guardian
+        await tx.guardian.update({
           where: { id: guardianId },
+          data: { deletedAt: new Date() },
+        });
+        
+        // Nonaktifkan user yang terkait tapi jangan hapus
+        await tx.user.updateMany({
+          where: { guardianId },
+          data: { password: "DEACTIVATED_" + Date.now() },
         });
       });
 
-      res.json({ success: true, message: "Wali murid berhasil dihapus" });
+      res.json({ success: true, message: "Wali murid berhasil dipindahkan ke Recycle Bin" });
     } catch (error: any) {
       if (error.code === "P2025") {
         res.status(404).json({ success: false, message: "Wali murid tidak ditemukan" });

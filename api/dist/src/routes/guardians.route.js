@@ -227,16 +227,18 @@ router.delete("/:id", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
     try {
         const guardianId = Number(req.params.id);
         await prisma_1.prisma.$transaction(async (tx) => {
-            // Hapus user yang terkait terlebih dahulu
-            await tx.user.deleteMany({
-                where: { guardianId },
-            });
-            // Hapus guardian
-            await tx.guardian.delete({
+            // Soft delete guardian
+            await tx.guardian.update({
                 where: { id: guardianId },
+                data: { deletedAt: new Date() },
+            });
+            // Nonaktifkan user yang terkait tapi jangan hapus
+            await tx.user.updateMany({
+                where: { guardianId },
+                data: { password: "DEACTIVATED_" + Date.now() },
             });
         });
-        res.json({ success: true, message: "Wali murid berhasil dihapus" });
+        res.json({ success: true, message: "Wali murid berhasil dipindahkan ke Recycle Bin" });
     }
     catch (error) {
         if (error.code === "P2025") {

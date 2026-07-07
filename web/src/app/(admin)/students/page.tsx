@@ -161,9 +161,8 @@ export default function StudentsPage() {
     }
   };
 
-  // Handle Delete with optimistic update
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+    if (!window.confirm("Pindahkan data siswa ini ke Recycle Bin?")) return;
     
     const previousStudents = [...students];
     setStudents(prev => prev.filter(s => s.id !== id)); // optimistic remove

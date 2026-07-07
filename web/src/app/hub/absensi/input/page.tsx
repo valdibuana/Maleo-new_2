@@ -224,9 +224,7 @@ export default function AttendanceInputPage() {
     setIsExporting(true);
     try {
       const token = localStorage.getItem("jwt_token");
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-      
-      const res = await fetch(`${baseUrl}/attendances/export/excel`, {
+      const res = await fetch(`/api/attendances/export/excel`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }

@@ -252,9 +252,15 @@ router.delete("/:id", verifyJWT, checkRole("admin"), async (req: Request, res: R
         where: { id },
         data: { deletedAt: new Date(), status: "inactive" },
       });
+
+      // Nonaktifkan user yang terkait tapi jangan hapus
+      await tx.user.updateMany({
+        where: { teacherId: id },
+        data: { password: "DEACTIVATED_" + Date.now() },
+      });
     });
     
-    res.json({ success: true, message: "Guru berhasil dihapus (soft delete)" });
+    res.json({ success: true, message: "Guru dipindahkan ke Recycle Bin" });
   } catch (error: any) {
     if (error.code === "P2025") { res.status(404).json({ success: false, message: "Guru tidak ditemukan" }); return; }
     console.error("[Teachers] DELETE error:", error);

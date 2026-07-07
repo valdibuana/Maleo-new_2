@@ -60,6 +60,8 @@ const identityGuard = async (req: AuthRequest, res: Response, next: any) => {
 router.use(verifyJWT);
 router.use(identityGuard);
 
+const isHubRole = (role: string) => role === "teacher" || role === "student";
+
 // 1. GET /api/hub/dashboard
 router.get("/dashboard", async (req: any, res: Response) => {
   try {
@@ -184,11 +186,15 @@ router.get("/announcements", async (req: AuthRequest, res: Response) => {
 router.get("/contents", async (req: any, res: Response) => {
   try {
     const { role } = req.user;
-    let where = {};
+    if (!isHubRole(role)) {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
+
+    let where: any;
 
     if (role === "teacher") {
       where = { teacherId: req.teacherId };
-    } else if (role === "student") {
+    } else {
       where = { classId: req.classId };
     }
 
@@ -226,11 +232,15 @@ router.post("/contents", async (req: any, res: Response) => {
 router.get("/assignments", async (req: any, res: Response) => {
   try {
     const { role } = req.user;
-    let where = {};
+    if (!isHubRole(role)) {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
+
+    let where: any;
 
     if (role === "teacher") {
       where = { teacherId: req.teacherId };
-    } else if (role === "student") {
+    } else {
       where = { classId: req.classId };
     }
 
@@ -390,6 +400,9 @@ router.get("/assignments/:id", async (req: any, res: Response) => {
   try {
     const assignmentId = Number(req.params.id);
     const { role } = req.user;
+    if (!isHubRole(role)) {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
 
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
@@ -409,6 +422,14 @@ router.get("/assignments/:id", async (req: any, res: Response) => {
 
     if (!assignment) {
       return res.status(404).json({ success: false, message: "Tugas tidak ditemukan." });
+    }
+
+    if (role === "student" && assignment.class.id !== req.classId) {
+      return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke tugas ini." });
+    }
+
+    if (role === "teacher" && assignment.teacherId !== req.teacherId) {
+      return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke tugas ini." });
     }
 
     // Jika murid, ambil submission miliknya
@@ -915,11 +936,15 @@ router.get("/attendance-summary", async (req: any, res: Response) => {
 router.get("/schedules", async (req: any, res: Response) => {
   try {
     const { role } = req.user;
-    let where = {};
+    if (!isHubRole(role)) {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
+
+    let where: any;
 
     if (role === "teacher") {
       where = { teacherId: req.teacherId };
-    } else if (role === "student") {
+    } else {
       where = { classId: req.classId };
     }
 
@@ -975,6 +1000,10 @@ router.get("/consultations", async (req: any, res: Response) => {
 // → guru buka detail thread
 router.get("/consultations/:id", async (req: any, res: Response) => {
   try {
+    if (req.user.role !== "teacher") {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
+
     const consultation = await prisma.consultation.findUnique({
       where: { id: Number(req.params.id) },
       include: { replies: { orderBy: { createdAt: "asc" } } }
@@ -984,11 +1013,17 @@ router.get("/consultations/:id", async (req: any, res: Response) => {
       return res.status(404).json({ success: false, message: "Tidak ditemukan." });
     }
 
+    if (consultation.receiverId !== req.user.id && consultation.senderId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Akses ditolak." });
+    }
+
     // Mark as read
-    await prisma.consultation.update({
-      where: { id: Number(req.params.id) },
-      data: { status: "read" }
-    });
+    if (consultation.receiverId === req.user.id) {
+      await prisma.consultation.update({
+        where: { id: Number(req.params.id) },
+        data: { status: "read" }
+      });
+    }
 
     res.json({ success: true, data: consultation });
   } catch (error) {
@@ -1011,6 +1046,10 @@ router.post("/consultations/:id/reply", async (req: any, res: Response) => {
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Thread tidak ditemukan." });
+    }
+
+    if (parent.receiverId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke thread ini." });
     }
 
     const reply = await prisma.consultation.create({

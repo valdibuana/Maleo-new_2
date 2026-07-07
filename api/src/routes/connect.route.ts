@@ -429,10 +429,90 @@ router.post("/consultations/:id/reply", async (req: any, res: Response) => {
     res.status(201).json({
       success: true,
       message: "Balasan berhasil dikirim.",
-      data: reply
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Gagal mengirim balasan." });
+  }
+});
+
+// 9a. DELETE /api/connect/consultations/:id/reply/:replyId
+// → Wali murid hapus 1 reply spesifik dalam thread
+router.delete("/consultations/:id/reply/:replyId", async (req: any, res: Response) => {
+  try {
+    const reply = await prisma.consultation.findUnique({
+      where: { id: Number(req.params.replyId) }
+    });
+
+    if (!reply || reply.parentId !== Number(req.params.id)) {
+      return res.status(404).json({
+        success: false,
+        message: "Balasan tidak ditemukan."
+      });
+    }
+
+    if (reply.senderId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda hanya bisa menghapus balasan yang Anda kirim sendiri."
+      });
+    }
+
+    await prisma.consultation.delete({
+      where: { id: reply.id }
+    });
+
+    res.json({
+      success: true,
+      message: "Balasan berhasil dihapus."
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus balasan."
+    });
+  }
+});
+
+// 9b. DELETE /api/connect/consultations/:id
+// → Wali murid hapus thread konsultasi miliknya sendiri
+router.delete("/consultations/:id", async (req: any, res: Response) => {
+  try {
+    const consultation = await prisma.consultation.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    if (!consultation) {
+      return res.status(404).json({
+        success: false,
+        message: "Konsultasi tidak ditemukan."
+      });
+    }
+
+    // Validasi: hanya pengirim asli yang boleh hapus
+    if (consultation.senderId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda hanya bisa menghapus pesan yang Anda kirim sendiri."
+      });
+    }
+
+    // Hapus thread + semua reply di dalamnya (cascade manual)
+    await prisma.consultation.deleteMany({
+      where: { parentId: consultation.id }
+    });
+    await prisma.consultation.delete({
+      where: { id: consultation.id }
+    });
+
+    res.json({
+      success: true,
+      message: "Konsultasi berhasil dihapus."
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus konsultasi."
+    });
   }
 });
 

@@ -78,8 +78,8 @@ export const apiService = {
     return response.data;
   },
 
-  remove: async (endpoint: string, id: string | number) => {
-    const response = await api.delete(`${endpoint}/${id}`);
+  remove: async (endpoint: string, id: string | number, config?: any) => {
+    const response = await api.delete(`${endpoint}/${id}`, config);
     return response.data;
   },
 };

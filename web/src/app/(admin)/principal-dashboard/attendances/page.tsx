@@ -94,10 +94,8 @@ export default function AttendancesPage() {
       if (filterStatus) params.append("status", filterStatus);
       if (filterDate) params.append("date", filterDate);
 
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
       const response = await fetch(
-        `${apiUrl}/attendances/export/excel?${params}`,
+        `/api/attendances/export/excel?${params}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

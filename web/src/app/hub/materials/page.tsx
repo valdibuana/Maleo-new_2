@@ -393,9 +393,10 @@ export default function MaterialsPage() {
       }
     }
 
-    const url = material.fileUrl.startsWith('http') 
-      ? material.fileUrl 
-      : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:4000'}${material.fileUrl}`;
+    // Use a relative path so Next.js rewrite proxy handles the host in all environments.
+    const url = material.fileUrl.startsWith('http')
+      ? material.fileUrl
+      : material.fileUrl;
     
     window.open(url, "_blank");
   };
@@ -436,10 +437,10 @@ export default function MaterialsPage() {
       // Silent failure - don't block material access
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:4000';
+    // Use a relative path so Next.js rewrite proxy handles the host in all environments.
     const url = material.fileUrl.startsWith('http')
       ? material.fileUrl
-      : `${baseUrl}${material.fileUrl}`;
+      : material.fileUrl;
 
     window.open(url, '_blank');
   };

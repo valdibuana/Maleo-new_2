@@ -105,7 +105,7 @@ export default function ExportAttendanceModal({ isOpen, onClose }: ExportAttenda
 
       console.log("Downloading from:", endpoint);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const response = await fetch(`/api${endpoint}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },

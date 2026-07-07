@@ -22,7 +22,7 @@ const classSchema = zod_1.z.object({
 router.get("/", auth_1.verifyJWT, async (req, res) => {
     try {
         const { search } = req.query;
-        const where = {};
+        const where = { deletedAt: null };
         if (search) {
             where.OR = [
                 { name: { contains: String(search), mode: "insensitive" } },
@@ -161,19 +161,25 @@ router.put("/:id", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), (0, validat
 router.delete("/:id", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (req, res) => {
     try {
         const id = Number(req.params.id);
-        // Safe Delete: Cek relasi dengan Siswa dan Jadwal
-        const [hasStudents, hasSchedules] = await Promise.all([
-            prisma_1.prisma.student.findFirst({ where: { classId: id } }),
+        // Safe Delete: Cek relasi dengan Siswa aktif dan Jadwal
+        const [studentCount, hasSchedules] = await Promise.all([
+            prisma_1.prisma.student.count({ where: { classId: id, deletedAt: null } }),
             prisma_1.prisma.schedule.findFirst({ where: { classId: id } }),
         ]);
-        if (hasStudents || hasSchedules) {
+        if (studentCount > 0) {
             return res.status(400).json({
                 success: false,
-                message: "Tidak dapat menghapus kelas: Masih terdapat data Siswa atau Jadwal yang terdaftar di kelas ini."
+                message: `Tidak bisa hapus kelas yang masih punya ${studentCount} siswa aktif. Pindahkan atau hapus siswa terlebih dahulu.`
             });
         }
-        await prisma_1.prisma.class.delete({ where: { id } });
-        res.json({ success: true, message: "Kelas berhasil dihapus" });
+        if (hasSchedules) {
+            return res.status(400).json({
+                success: false,
+                message: "Tidak dapat menghapus kelas: Masih terdapat Jadwal yang terdaftar di kelas ini."
+            });
+        }
+        await prisma_1.prisma.class.update({ where: { id }, data: { deletedAt: new Date() } });
+        res.json({ success: true, message: "Kelas dipindahkan ke Recycle Bin" });
     }
     catch (error) {
         if (error.code === "P2025") {

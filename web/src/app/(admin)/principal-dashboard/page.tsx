@@ -90,7 +90,7 @@ export default function PrincipalDashboard() {
 
   const statCards = [
     { label: "Total Siswa",       value: summary?.totalStudents ?? 0,       icon: Users,        color: "text-brand",  bg: "bg-brand/10",  trend: "Siswa Aktif" },
-    { label: "Guru Aktif",        value: summary?.totalTeachers ?? 0,       icon: GraduationCap,color: "text-brand", bg: "bg-brand/10", trend: "Tenaga Pendidik" },
+    { label: "Guru Aktif",        value: summary?.totalTeachers ?? 0,       icon: GraduationCap,color: "text-brand", bg: "bg-brand/10", trend: "Tenaga Pengajar" },
     { label: "Kehadiran Siswa",   value: `${summary?.attendanceRate ?? 0}%`,icon: Activity,     color: "text-brand",  bg: "bg-brand/10",   trend: "Rata-rata Bulan Ini" },
     { label: "Kehadiran Guru",    value: `${summary?.teacherAttendanceRate ?? 0}%`, icon: UserCheck, color: "text-brand", bg: "bg-brand/10", trend: "Rata-rata Bulan Ini" },
   ];
@@ -149,11 +149,10 @@ export default function PrincipalDashboard() {
       </div>
 
       {/* Info bar — totals */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { label: "Total Kelas",    value: summary?.totalClasses ?? 0,  icon: BookOpen },
           { label: "Total Mapel",    value: summary?.totalSubjects ?? 0, icon: CalendarDays },
-          { label: "Kelas Bermasalah", value: lowAlerts.length,          icon: AlertCircle },
           { label: "Siswa Berprestasi", value: topStudents.length,       icon: Award },
         ].map(item => {
           const Icon = item.icon;

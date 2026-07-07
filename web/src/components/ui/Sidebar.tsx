@@ -22,6 +22,7 @@ import {
   UserCircle,
   ShieldCheck,
   FileDown,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { performLogout } from "@/lib/axios";
@@ -45,9 +46,9 @@ const adminMenuItems = [
   {
     label: "Data Pengguna",
     items: [
-      { name: "Data Kepala Sekolah", href: "/principal", icon: ShieldCheck },
-      { name: "Siswa", href: "/students", icon: Users },
       { name: "Guru", href: "/teachers", icon: GraduationCap },
+      { name: "Kepala Sekolah", href: "/principal", icon: ShieldCheck },
+      { name: "Siswa", href: "/students", icon: Users },
       { name: "Wali Murid", href: "/guardians", icon: UserCheck },
     ],
   },
@@ -69,6 +70,7 @@ const adminMenuItems = [
     label: "Lainnya",
     items: [
       { name: "Pengumuman", href: "/announcements", icon: Megaphone },
+      { name: "Recycle Bin", href: "/recycle-bin", icon: Trash2 },
       { name: "Profil Saya", href: "/settings/profile", icon: UserCircle },
     ],
   },

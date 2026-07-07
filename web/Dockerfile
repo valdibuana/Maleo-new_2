@@ -12,6 +12,11 @@ ENV TZ=Asia/Jakarta
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Used by next.config.mjs rewrites() to proxy to the API container in Docker.
+# Falls back to localhost for local development.
+ARG API_INTERNAL_URL=http://localhost:4000
+ENV API_INTERNAL_URL=${API_INTERNAL_URL}
+
 COPY package*.json ./
 RUN npm ci
 

@@ -137,7 +137,7 @@ export default function TeachersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Hapus data guru ini?")) return;
+    if (!window.confirm("Pindahkan data guru ini ke Recycle Bin?")) return;
     try {
       await apiService.remove("/teachers", id);
       setSuccess("Guru berhasil dihapus");

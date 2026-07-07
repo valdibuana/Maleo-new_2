@@ -291,7 +291,8 @@ export default function AtpDetailPage() {
       }
     }
 
-    const host = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:4000";
+    // Upload files: use a relative path so the Next.js rewrite handles the host.
+    const host = "";
     const downloadUrl = mat.fileUrl.startsWith("http") ? mat.fileUrl : `${host}${mat.fileUrl}`;
     window.open(downloadUrl, "_blank");
   };

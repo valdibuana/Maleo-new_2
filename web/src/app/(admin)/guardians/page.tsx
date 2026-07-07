@@ -216,7 +216,7 @@ Username Login: "${data.loginUsername}"
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Hapus data wali murid ini?")) return;
+    if (!window.confirm("Pindahkan data wali murid ini ke Recycle Bin?")) return;
     try {
       await apiService.remove("/guardians", id);
       setSuccess("Wali murid berhasil dihapus");

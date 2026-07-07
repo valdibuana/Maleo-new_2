@@ -24,7 +24,8 @@ for (const envVar of REQUIRED_ENV_VARS) {
     }
 }
 if (process.env.JWT_SECRET === "fallback_secret" ||
-    process.env.JWT_SECRET === "CHANGE_ME_generate_a_strong_random_secret") {
+    process.env.JWT_SECRET === "CHANGE_ME_generate_a_strong_random_secret" ||
+    process.env.JWT_SECRET === "replace_with_strong_secret_for_production") {
     console.error(`[FATAL] JWT_SECRET is using a default/placeholder value.`);
     console.error(`        Generate a strong secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`);
     process.exit(1);
@@ -56,6 +57,7 @@ const profile_route_1 = __importDefault(require("./routes/profile.route"));
 const connect_route_1 = __importDefault(require("./routes/connect.route"));
 const atp_route_1 = __importDefault(require("./routes/atp.route"));
 const classification_route_1 = __importDefault(require("./routes/classification.route"));
+const recycle_bin_route_1 = __importDefault(require("./routes/recycle-bin.route"));
 const schedule_slots_route_1 = __importDefault(require("./routes/schedule-slots.route"));
 const export_route_1 = __importDefault(require("./routes/export.route"));
 const app = (0, express_1.default)();
@@ -117,6 +119,7 @@ app.use("/api/connect", connect_route_1.default);
 app.use("/api/classification", classification_route_1.default);
 app.use("/api/schedule-slots", schedule_slots_route_1.default);
 app.use("/api/export", export_route_1.default);
+app.use("/api/recycle-bin", recycle_bin_route_1.default);
 // Error Handler — centralized error processing
 app.use((err, req, res, _next) => {
     // Custom AppError (BadRequest, NotFound, Forbidden, etc.)

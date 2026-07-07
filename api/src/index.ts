@@ -11,7 +11,7 @@ import { sanitizeBody } from "./middleware/sanitize";
 // ──────────────────────────────────────────────
 // Startup Environment Validation
 // ──────────────────────────────────────────────
-const REQUIRED_ENV_VARS = ["JWT_SECRET", "DATABASE_URL"] as const;
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "JWT_REFRESH_SECRET", "DATABASE_URL"] as const;
 
 for (const envVar of REQUIRED_ENV_VARS) {
   if (!process.env[envVar]) {
@@ -23,7 +23,9 @@ for (const envVar of REQUIRED_ENV_VARS) {
 
 if (
   process.env.JWT_SECRET === "fallback_secret" ||
-  process.env.JWT_SECRET === "CHANGE_ME_generate_a_strong_random_secret"
+  process.env.JWT_SECRET === "CHANGE_ME_generate_a_strong_random_secret" ||
+  process.env.JWT_SECRET === "replace_with_strong_secret_for_production" ||
+  process.env.JWT_SECRET === "maleo_dev_jwt_secret_2026_change_me"
 ) {
   console.error(`[FATAL] JWT_SECRET is using a default/placeholder value.`);
   console.error(`        Generate a strong secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`);
@@ -58,6 +60,7 @@ import profileRouter from "./routes/profile.route";
 import connectRouter from "./routes/connect.route";
 import atpRouter from "./routes/atp.route";
 import classificationRouter from "./routes/classification.route";
+import recycleBinRouter from "./routes/recycle-bin.route";
 import scheduleSlotsRouter from "./routes/schedule-slots.route";
 import exportRouter from "./routes/export.route";
 const app = express();
@@ -128,6 +131,7 @@ app.use("/api/connect", connectRouter);
 app.use("/api/classification", classificationRouter);
 app.use("/api/schedule-slots", scheduleSlotsRouter);
 app.use("/api/export", exportRouter);
+app.use("/api/recycle-bin", recycleBinRouter);
 
 // Error Handler — centralized error processing
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {

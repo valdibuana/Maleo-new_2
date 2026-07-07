@@ -67,6 +67,7 @@ const identityGuard = async (req, res, next) => {
 };
 router.use(auth_1.verifyJWT);
 router.use(identityGuard);
+const isHubRole = (role) => role === "teacher" || role === "student";
 // 1. GET /api/hub/dashboard
 router.get("/dashboard", async (req, res) => {
     try {
@@ -188,11 +189,14 @@ router.get("/announcements", async (req, res) => {
 router.get("/contents", async (req, res) => {
     try {
         const { role } = req.user;
-        let where = {};
+        if (!isHubRole(role)) {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
+        let where;
         if (role === "teacher") {
             where = { teacherId: req.teacherId };
         }
-        else if (role === "student") {
+        else {
             where = { classId: req.classId };
         }
         const contents = await prisma_1.prisma.content.findMany({
@@ -229,11 +233,14 @@ router.post("/contents", async (req, res) => {
 router.get("/assignments", async (req, res) => {
     try {
         const { role } = req.user;
-        let where = {};
+        if (!isHubRole(role)) {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
+        let where;
         if (role === "teacher") {
             where = { teacherId: req.teacherId };
         }
-        else if (role === "student") {
+        else {
             where = { classId: req.classId };
         }
         const assignments = await prisma_1.prisma.assignment.findMany({
@@ -373,6 +380,9 @@ router.get("/assignments/:id", async (req, res) => {
     try {
         const assignmentId = Number(req.params.id);
         const { role } = req.user;
+        if (!isHubRole(role)) {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
         const assignment = await prisma_1.prisma.assignment.findUnique({
             where: { id: assignmentId },
             include: {
@@ -390,6 +400,12 @@ router.get("/assignments/:id", async (req, res) => {
         });
         if (!assignment) {
             return res.status(404).json({ success: false, message: "Tugas tidak ditemukan." });
+        }
+        if (role === "student" && assignment.class.id !== req.classId) {
+            return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke tugas ini." });
+        }
+        if (role === "teacher" && assignment.teacherId !== req.teacherId) {
+            return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke tugas ini." });
         }
         // Jika murid, ambil submission miliknya
         let studentSubmission = undefined;
@@ -841,11 +857,14 @@ router.get("/attendance-summary", async (req, res) => {
 router.get("/schedules", async (req, res) => {
     try {
         const { role } = req.user;
-        let where = {};
+        if (!isHubRole(role)) {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
+        let where;
         if (role === "teacher") {
             where = { teacherId: req.teacherId };
         }
-        else if (role === "student") {
+        else {
             where = { classId: req.classId };
         }
         const schedules = await prisma_1.prisma.schedule.findMany({
@@ -898,6 +917,9 @@ router.get("/consultations", async (req, res) => {
 // → guru buka detail thread
 router.get("/consultations/:id", async (req, res) => {
     try {
+        if (req.user.role !== "teacher") {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
         const consultation = await prisma_1.prisma.consultation.findUnique({
             where: { id: Number(req.params.id) },
             include: { replies: { orderBy: { createdAt: "asc" } } }
@@ -905,11 +927,16 @@ router.get("/consultations/:id", async (req, res) => {
         if (!consultation) {
             return res.status(404).json({ success: false, message: "Tidak ditemukan." });
         }
+        if (consultation.receiverId !== req.user.id && consultation.senderId !== req.user.id) {
+            return res.status(403).json({ success: false, message: "Akses ditolak." });
+        }
         // Mark as read
-        await prisma_1.prisma.consultation.update({
-            where: { id: Number(req.params.id) },
-            data: { status: "read" }
-        });
+        if (consultation.receiverId === req.user.id) {
+            await prisma_1.prisma.consultation.update({
+                where: { id: Number(req.params.id) },
+                data: { status: "read" }
+            });
+        }
         res.json({ success: true, data: consultation });
     }
     catch (error) {
@@ -929,6 +956,9 @@ router.post("/consultations/:id/reply", async (req, res) => {
         });
         if (!parent) {
             return res.status(404).json({ success: false, message: "Thread tidak ditemukan." });
+        }
+        if (parent.receiverId !== req.user.id) {
+            return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke thread ini." });
         }
         const reply = await prisma_1.prisma.consultation.create({
             data: {

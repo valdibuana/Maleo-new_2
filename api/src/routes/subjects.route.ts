@@ -18,7 +18,7 @@ const subjectSchema = z.object({
 router.get("/", verifyJWT, async (req: Request, res: Response) => {
   try {
     const { search } = req.query;
-    const where: any = {};
+    const where: any = { deletedAt: null };
     
     // Hard filtering for teacher role
     const reqUser = (req as any).user;
@@ -107,8 +107,8 @@ router.delete("/:id", verifyJWT, checkRole("admin"), async (req: Request, res: R
       });
     }
 
-    await prisma.subject.delete({ where: { id } });
-    res.json({ success: true, message: "Mapel berhasil dihapus" });
+    await prisma.subject.update({ where: { id }, data: { deletedAt: new Date() } });
+    res.json({ success: true, message: "Mapel dipindahkan ke Recycle Bin" });
   } catch (error: any) {
     if (error.code === "P2025") { res.status(404).json({ success: false, message: "Mapel tidak ditemukan" }); return; }
     console.error("[Subjects] DELETE error:", error);

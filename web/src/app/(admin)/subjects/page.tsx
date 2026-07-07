@@ -103,7 +103,7 @@ export default function SubjectsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Hapus mata pelajaran ini?")) return;
+    if (!window.confirm("Pindahkan mata pelajaran ini ke Recycle Bin?")) return;
     try {
       await apiService.remove("/subjects", id);
       setSuccess("Mata pelajaran berhasil dihapus");

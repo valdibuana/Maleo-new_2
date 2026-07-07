@@ -71,8 +71,9 @@ export default function AssignmentsPage() {
   // Filters
   const [activeFilter, setActiveFilter] = useState("Semua");
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:4000";
+  // Upload files are served from the API server; use a relative path so the
+  // Next.js rewrite proxy handles them correctly in all environments.
+  const API_BASE = "";
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");

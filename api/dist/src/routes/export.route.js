@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
+const role_1 = require("../middleware/role");
 const attendance_export_service_1 = require("../services/attendance-export.service");
 const prisma_1 = require("../lib/prisma");
 const router = (0, express_1.Router)();
@@ -20,7 +21,7 @@ function getWeekNumber(date) {
  * Export Student Attendance Excel
  * GET /api/export/attendance/student?classId=1&startDate=2026-01-01&endDate=2026-01-31
  */
-router.get('/attendance/student', auth_1.verifyJWT, async (req, res) => {
+router.get('/attendance/student', auth_1.verifyJWT, (0, role_1.checkRole)('admin', 'kepala_sekolah'), async (req, res) => {
     try {
         const { classId, startDate, endDate } = req.query;
         // Validation
@@ -106,7 +107,7 @@ router.get('/attendance/student', auth_1.verifyJWT, async (req, res) => {
  * Export Teacher Attendance Excel
  * GET /api/export/attendance/teacher?month=1&year=2026
  */
-router.get('/attendance/teacher', auth_1.verifyJWT, async (req, res) => {
+router.get('/attendance/teacher', auth_1.verifyJWT, (0, role_1.checkRole)('admin', 'kepala_sekolah'), async (req, res) => {
     try {
         const { month, year } = req.query;
         // Validation

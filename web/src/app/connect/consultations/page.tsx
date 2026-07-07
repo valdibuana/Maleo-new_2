@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { apiService } from "@/services/apiService";
-import { MessageCircle, Send, Loader2, Plus } from "lucide-react";
+import { MessageCircle, Send, Loader2, Plus, Trash2 } from "lucide-react";
 
 export default function ConsultationsPage() {
   const [threads, setThreads] = useState<any[]>([]);
@@ -20,6 +20,8 @@ export default function ConsultationsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
@@ -92,6 +94,28 @@ export default function ConsultationsPage() {
     }
   };
 
+  const handleDeleteThread = async (id: number) => {
+    if (!confirm(
+      "Hapus konsultasi ini? Semua balasan di dalamnya " +
+      "juga akan ikut terhapus. Tindakan ini tidak bisa dibatalkan."
+    )) return;
+
+    try {
+      await apiService.remove("/connect/consultations", id);
+      setSuccess("Konsultasi berhasil dihapus.");
+      fetchConsultations(); // refresh list
+      if (selectedThread?.id === id) setSelectedThread(null);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Gagal menghapus konsultasi.");
+      setTimeout(() => setError(""), 3000);
+    }
+  };
+
+  const fetchConsultations = () => {
+    fetchThreads();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "unread": return <Badge variant="danger">Belum Dibaca</Badge>;
@@ -111,6 +135,9 @@ export default function ConsultationsPage() {
 
   return (
     <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
+      {error && <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">{error}</div>}
+      {success && <div className="p-4 bg-green-50 text-green-600 rounded-lg border border-green-200">{success}</div>}
+
       <div className="flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Konsultasi ke Guru</h1>
@@ -141,7 +168,21 @@ export default function ConsultationsPage() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <p className="font-semibold line-clamp-1">{t.subject}</p>
-                    {getStatusBadge(t.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(t.status)}
+                      {t.senderId === user?.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteThread(t.id);
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Hapus konsultasi"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                     {t.replies?.[0]?.message || t.message}

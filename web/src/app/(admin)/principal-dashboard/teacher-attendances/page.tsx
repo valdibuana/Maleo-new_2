@@ -38,8 +38,7 @@ export default function TeacherAttendancesPage() {
   const handleExport = async () => {
     try {
       const token = localStorage.getItem("jwt_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-      const res = await fetch(`${apiUrl}/teacher-attendances/export?month=${selectedMonth}&year=${selectedYear}`, {
+      const res = await fetch(`/api/teacher-attendances/export?month=${selectedMonth}&year=${selectedYear}`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }

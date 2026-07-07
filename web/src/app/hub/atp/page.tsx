@@ -291,7 +291,7 @@ export default function AtpPage() {
   };
 
   const handleDownloadExcelTemplate = () => {
-    const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/atp/template/excel`;
+    const url = `/api/atp/template/excel`;
     window.open(url, "_blank");
   };
 

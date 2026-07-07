@@ -139,6 +139,7 @@ model Guardian {
   occupation String?
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
   user       User?
   students   Student[] @relation("StudentGuardians")
 
@@ -169,6 +170,7 @@ model Class {
   homeroomTeacherId Int              @map("homeroom_teacher_id")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at")
   assignments       Assignment[]
   homeroomTeacher   Teacher          @relation("HomeroomTeacher", fields: [homeroomTeacherId], references: [id])
   contents          Content[]
@@ -190,6 +192,7 @@ model Subject {
   teacherId       Int              @map("teacher_id")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
   assignments     Assignment[]
   contents        Content[]
   gradeConfigs    GradeConfig[]
@@ -260,6 +263,7 @@ model Attendance {
   @@map("attendances")
   @@index([date])
   @@index([status])
+  @@index([studentId, date])
 }
 
 model Grade {
@@ -283,6 +287,8 @@ model Grade {
   @@map("grades")
   @@index([date])
   @@index([type])
+  @@index([studentId, date])
+  @@index([subjectId, type])
 }
 
 model GradeConfig {
@@ -370,6 +376,8 @@ model Assignment {
   teacher     Teacher                @relation(fields: [teacherId], references: [id])
 
   @@map("assignments")
+  @@index([teacherId, dueDate])
+  @@index([classId, dueDate])
 }
 
 model AssignmentSubmission {
@@ -587,6 +595,7 @@ model Consultation {
   @@index([senderId])
   @@index([receiverId])
   @@index([status])
+  @@index([parentId, receiverId])
 }
 
 model StudentClassification {
