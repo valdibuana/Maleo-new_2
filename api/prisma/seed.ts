@@ -12,9 +12,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {
-      password: adminPassword,
-    },
+    update: {},
     create: {
       name: "Admin Utama",
       email: adminEmail,
@@ -44,9 +42,7 @@ async function main() {
 
   const principalUser = await prisma.user.upsert({
     where: { email: principalEmail },
-    update: {
-      password: principalPassword,
-    },
+    update: {},
     create: {
       name: "Kepala Sekolah Maleo",
       email: principalEmail,
@@ -150,9 +146,7 @@ async function main() {
 
   const studentUser = await prisma.user.upsert({
     where: { email: studentEmail },
-    update: {
-      password: studentPassword,
-    },
+    update: {},
     create: {
       name: "Siswa Test",
       email: studentEmail,
@@ -211,9 +205,7 @@ async function main() {
 
   const guardianUser = await prisma.user.upsert({
     where: { email: guardianEmail },
-    update: {
-      password: guardianPassword,
-    },
+    update: {},
     create: {
       name: "Wali Murid Test",
       email: guardianEmail,
