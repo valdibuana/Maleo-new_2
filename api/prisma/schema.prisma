@@ -8,49 +8,46 @@ datasource db {
 }
 
 model User {
-  id                    Int        @id @default(autoincrement())
+  id                    Int            @id @default(autoincrement())
   name                  String
-  email                 String?    @unique
+  email                 String?        @unique
   password              String
-  role                  Role       @default(admin)
-  username              String?    @unique
-  createdAt             DateTime   @default(now()) @map("created_at")
-  updatedAt             DateTime   @updatedAt @map("updated_at")
-  force_change_password Boolean    @default(true)
-  guardianId            Int?       @unique @map("guardian_id")
-  nipNis                String?    @unique @map("nip_nis")
-  principalId           Int?       @unique @map("principal_id")
-  studentId             Int?       @unique @map("student_id")
-  teacherId             Int?       @unique @map("teacher_id")
-  userCode              String?    @map("user_code")
-  guardian              Guardian?  @relation(fields: [guardianId], references: [id])
-  principal             Principal? @relation(fields: [principalId], references: [id])
-  student               Student?   @relation(fields: [studentId], references: [id])
-  teacher               Teacher?   @relation(fields: [teacherId], references: [id])
+  role                  Role           @default(admin)
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+  force_change_password Boolean        @default(true)
+  guardianId            Int?           @unique @map("guardian_id")
+  nipNis                String?        @unique @map("nip_nis")
+  principalId           Int?           @unique @map("principal_id")
+  studentId             Int?           @unique @map("student_id")
+  teacherId             Int?           @unique @map("teacher_id")
+  userCode              String?        @map("user_code")
+  username              String?        @unique
   refreshTokens         RefreshToken[]
+  guardian              Guardian?      @relation(fields: [guardianId], references: [id])
+  principal             Principal?     @relation(fields: [principalId], references: [id])
+  student               Student?       @relation(fields: [studentId], references: [id])
+  teacher               Teacher?       @relation(fields: [teacherId], references: [id])
 
-  @@map("users")
   @@index([role])
+  @@map("users")
 }
-
 
 model RefreshToken {
   id        Int       @id @default(autoincrement())
-  token     String    @unique // SHA-256 hash of the JWT refresh token
-  familyId  String    @map("family_id") // Groups tokens from same login session
+  token     String    @unique
   userId    Int       @map("user_id")
   expiresAt DateTime  @map("expires_at")
   createdAt DateTime  @default(now()) @map("created_at")
-  revokedAt DateTime? @map("revoked_at") // null = still valid; set when rotated/revoked
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String    @map("family_id")
+  revokedAt DateTime? @map("revoked_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
-
 
 model Student {
   id                Int                     @id @default(autoincrement())
@@ -61,25 +58,25 @@ model Student {
   address           String?
   phone             String?
   status            Status                  @default(active)
-  deletedAt         DateTime?               @map("deleted_at")
   createdAt         DateTime                @default(now()) @map("created_at")
   updatedAt         DateTime                @updatedAt @map("updated_at")
   classId           Int                     @map("class_id")
+  deletedAt         DateTime?               @map("deleted_at")
   submissions       AssignmentSubmission[]
+  atpMaterialAccess ATPMaterialAccess[]
   attendances       Attendance[]
   grades            Grade[]
-  atpMaterialAccess ATPMaterialAccess[]
   classifications   StudentClassification[]
   materialAccess    StudentMaterialAccess[]
   class             Class                   @relation(fields: [classId], references: [id])
   user              User?
   guardians         Guardian[]              @relation("StudentGuardians")
 
-  @@map("students")
   @@index([classId])
   @@index([name])
   @@index([deletedAt, name])
   @@index([deletedAt, classId])
+  @@map("students")
 }
 
 model Teacher {
@@ -91,26 +88,27 @@ model Teacher {
   phone              String?
   subject            String?
   status             Status              @default(active)
-  deletedAt          DateTime?           @map("deleted_at")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
+  deletedAt          DateTime?           @map("deleted_at")
   assignments        Assignment[]
+  atp                ATP[]
   homeroomClasses    Class[]             @relation("HomeroomTeacher")
   contents           Content[]
   gradeConfigs       GradeConfig[]
   learningModules    LearningModule[]
-  atp                ATP[]
   scheduleSlots      ScheduleSlot[]
   schedules          Schedule[]
   subjects           Subject[]
   teacherAttendances TeacherAttendance[]
+  teacherJournals    TeacherJournal[]
   teacherSubjects    TeacherSubject[]
   user               User?
 
-  @@map("teachers")
   @@index([status])
   @@index([name])
   @@index([status, deletedAt])
+  @@map("teachers")
 }
 
 model Principal {
@@ -155,8 +153,8 @@ model AcademicYear {
   isActive        Boolean                 @default(false) @map("is_active")
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @updatedAt @map("updated_at")
-  learningModules LearningModule[]
   atp             ATP[]
+  learningModules LearningModule[]
   scheduleSlots   ScheduleSlot[]
   classifications StudentClassification[]
 
@@ -172,13 +170,14 @@ model Class {
   updatedAt         DateTime         @updatedAt @map("updated_at")
   deletedAt         DateTime?        @map("deleted_at")
   assignments       Assignment[]
+  atp               ATP[]
   homeroomTeacher   Teacher          @relation("HomeroomTeacher", fields: [homeroomTeacherId], references: [id])
   contents          Content[]
   gradeConfigs      GradeConfig[]
   learningModules   LearningModule[]
-  atp               ATP[]
   schedules         Schedule[]
   students          Student[]
+  teacherJournals   TeacherJournal[]
 
   @@map("classes")
 }
@@ -194,17 +193,18 @@ model Subject {
   updatedAt       DateTime         @updatedAt @map("updated_at")
   deletedAt       DateTime?        @map("deleted_at")
   assignments     Assignment[]
+  atp             ATP[]
   contents        Content[]
   gradeConfigs    GradeConfig[]
   grades          Grade[]
   learningModules LearningModule[]
-  atp             ATP[]
   schedules       Schedule[]
   teacher         Teacher          @relation(fields: [teacherId], references: [id])
+  teacherJournals TeacherJournal[]
   teacherSubjects TeacherSubject[]
 
-  @@map("subjects")
   @@index([teacherId])
+  @@map("subjects")
 }
 
 model Schedule {
@@ -222,8 +222,8 @@ model Schedule {
   subject   Subject  @relation(fields: [subjectId], references: [id])
   teacher   Teacher  @relation(fields: [teacherId], references: [id])
 
-  @@map("schedules")
   @@index([day])
+  @@map("schedules")
 }
 
 model ScheduleSlot {
@@ -237,11 +237,11 @@ model ScheduleSlot {
   teacherName          String?      @map("teacher_name")
   teacherId            Int?         @map("teacher_id")
   isConfirmed          Boolean      @default(false) @map("is_confirmed")
-  isPublished          Boolean      @default(false) @map("is_published")
   confirmationDeadline DateTime?    @map("confirmation_deadline")
   academicYearId       Int          @map("academic_year_id")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
+  isPublished          Boolean      @default(false) @map("is_published")
   academicYear         AcademicYear @relation(fields: [academicYearId], references: [id])
   teacher              Teacher?     @relation(fields: [teacherId], references: [id])
 
@@ -260,10 +260,10 @@ model Attendance {
   updatedAt DateTime         @updatedAt @map("updated_at")
   student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@map("attendances")
   @@index([date])
   @@index([status])
   @@index([studentId, date])
+  @@map("attendances")
 }
 
 model Grade {
@@ -284,11 +284,11 @@ model Grade {
   student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subject    Subject   @relation(fields: [subjectId], references: [id])
 
-  @@map("grades")
   @@index([date])
   @@index([type])
   @@index([studentId, date])
   @@index([subjectId, type])
+  @@map("grades")
 }
 
 model GradeConfig {
@@ -335,10 +335,10 @@ model Announcement {
   createdAt   DateTime             @default(now()) @map("created_at")
   updatedAt   DateTime             @updatedAt @map("updated_at")
 
-  @@map("announcements")
   @@index([isPublished])
   @@index([createdAt])
   @@index([isPublished, target, createdAt])
+  @@map("announcements")
 }
 
 model Content {
@@ -375,9 +375,9 @@ model Assignment {
   subject     Subject                @relation(fields: [subjectId], references: [id])
   teacher     Teacher                @relation(fields: [teacherId], references: [id])
 
-  @@map("assignments")
   @@index([teacherId, dueDate])
   @@index([classId, dueDate])
+  @@map("assignments")
 }
 
 model AssignmentSubmission {
@@ -418,9 +418,9 @@ model LearningModule {
   teacher        Teacher         @relation(fields: [teacherId], references: [id])
   sessions       ModuleSession[]
 
-  @@map("learning_modules")
   @@index([teacherId])
   @@index([isPublished])
+  @@map("learning_modules")
 }
 
 model ModuleSession {
@@ -490,9 +490,9 @@ model ATP {
   meetings          ATPMeeting[]
 
   @@unique([subjectId, classId, teacherId, academicYearId])
-  @@map("atp")
   @@index([teacherId])
   @@index([status])
+  @@map("atp")
 }
 
 model ATPMeeting {
@@ -573,8 +573,8 @@ model TeacherAttendance {
   teacher        Teacher             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, date])
-  @@map("teacher_attendances")
   @@index([date])
+  @@map("teacher_attendances")
 }
 
 model Consultation {
@@ -591,11 +591,11 @@ model Consultation {
   parent     Consultation?      @relation("ConsultationReplies", fields: [parentId], references: [id])
   replies    Consultation[]     @relation("ConsultationReplies")
 
-  @@map("consultations")
   @@index([senderId])
   @@index([receiverId])
   @@index([status])
   @@index([parentId, receiverId])
+  @@map("consultations")
 }
 
 model StudentClassification {
@@ -613,6 +613,27 @@ model StudentClassification {
 
   @@unique([studentId, academicYearId, semester])
   @@map("student_classifications")
+}
+
+model TeacherJournal {
+  id            Int      @id @default(autoincrement())
+  date          DateTime
+  material      String   @map("material_taught")
+  objective     String   @map("learning_objective")
+  activityNotes String?  @map("activity_notes")
+  constraints   String?  @map("learning_constraints")
+  followUp      String?  @map("follow_up")
+  teacherId     Int      @map("teacher_id")
+  classId       Int      @map("class_id")
+  subjectId     Int      @map("subject_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject       Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher       Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, date])
+  @@map("teacher_journals")
 }
 
 enum Role {

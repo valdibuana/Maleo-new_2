@@ -9,6 +9,57 @@ const WORK_START_HOUR = 7;
 const WORK_START_MINUTE = 0;
 const WORK_START_TIME = '07:00';
 
+// ── Helper: Hitung rentang Senin-Minggu dari tanggal apapun ──
+const getWeekRange = (date: Date): { start: Date; end: Date } => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dayOfWeek = d.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const start = new Date(d);
+  start.setDate(d.getDate() + diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+// ── Helper: Bangun filter tanggal dari query params ──
+const buildDateFilter = (query: Record<string, any>): any => {
+  const { date, startDate, endDate, weekStart, month, year } = query;
+
+  if (startDate && endDate) {
+    const start = new Date(String(startDate));
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(String(endDate));
+    end.setHours(23, 59, 59, 999);
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays < 0) return { error: "endDate tidak boleh sebelum startDate" };
+    if (diffDays > 366) return { error: "Rentang tanggal maksimal 366 hari" };
+    return { filter: { gte: start, lte: end } };
+  }
+
+  if (weekStart) {
+    const { start, end } = getWeekRange(new Date(String(weekStart)));
+    return { filter: { gte: start, lte: end } };
+  }
+
+  if (date) {
+    const targetDate = new Date(String(date));
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(targetDate.getDate() + 1);
+    return { filter: { gte: targetDate, lt: nextDay } };
+  }
+
+  if (month && year) {
+    const startDate = new Date(Number(year), Number(month) - 1, 1);
+    const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+    return { filter: { gte: startDate, lte: endDate } };
+  }
+
+  return { filter: undefined };
+};
+
 // ──────────────────────────────────────────────
 // GET /today — Status check-in hari ini (guru)
 // ──────────────────────────────────────────────
@@ -149,15 +200,20 @@ router.post("/checkin", verifyJWT, async (req: any, res: Response) => {
 
     const { status, note } = req.body;
 
-    // Hitung keterlambatan berdasarkan jam kerja standar sekolah
+    // Toleransi keterlambatan hingga jam 09:00 (jam kerja tetap 07:00)
+    const CUTOFF_HOUR = 9;
+    const CUTOFF_MINUTE = 0;
+
     const hour = now.getHours();
     const minute = now.getMinutes();
+
     const isLate = status === 'hadir' && (
-      hour > WORK_START_HOUR ||
-      (hour === WORK_START_HOUR && minute > WORK_START_MINUTE)
+      hour > CUTOFF_HOUR ||
+      (hour === CUTOFF_HOUR && minute > CUTOFF_MINUTE)
     );
+
     const lateMinutes = isLate
-      ? (hour - WORK_START_HOUR) * 60 + minute - WORK_START_MINUTE
+      ? (hour - CUTOFF_HOUR) * 60 + minute - CUTOFF_MINUTE
       : 0;
 
     const finalStatus = status === 'hadir' && isLate ? 'terlambat' : status;
@@ -201,17 +257,18 @@ router.get("/export", verifyJWT, async (req: any, res: Response) => {
       return res.status(403).json({ success: false, message: "Akses ditolak." });
     }
 
-    const { month, year } = req.query;
-    const targetMonth = month ? Number(month) - 1 : new Date().getMonth();
-    const targetYear = year ? Number(year) : new Date().getFullYear();
+    const dateResult = buildDateFilter(req.query);
+    if (dateResult?.error) {
+      return res.status(400).json({ success: false, message: dateResult.error });
+    }
 
-    const startDate = new Date(targetYear, targetMonth, 1);
-    const endDate = new Date(targetYear, targetMonth + 1, 0);
+    const whereClause: any = {};
+    if (dateResult?.filter) {
+      whereClause.date = dateResult.filter;
+    }
 
     const attendances = await prisma.teacherAttendance.findMany({
-      where: {
-        date: { gte: startDate, lte: endDate }
-      },
+      where: whereClause,
       include: {
         teacher: { select: { name: true, nip: true } }
       },
@@ -262,9 +319,15 @@ router.get("/export", verifyJWT, async (req: any, res: Response) => {
       });
     });
 
-    const monthName = new Date(targetYear, targetMonth).toLocaleString('id-ID', { month: 'long' });
+    let fileNameDate = 'Semua_Waktu';
+    const q = req.query;
+    if (q.startDate && q.endDate) fileNameDate = `${q.startDate}_sampai_${q.endDate}`;
+    else if (q.weekStart) fileNameDate = `Minggu_dari_${q.weekStart}`;
+    else if (q.date) fileNameDate = `Tanggal_${q.date}`;
+    else if (q.month && q.year) fileNameDate = `${new Date(Number(q.year), Number(q.month)-1).toLocaleString('id-ID', { month: 'long' })}_${q.year}`;
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=Rekap_Kehadiran_Guru_${monthName}_${targetYear}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=Rekap_Kehadiran_Guru_${fileNameDate}.xlsx`);
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
@@ -281,17 +344,18 @@ router.get("/", verifyJWT, async (req: any, res: Response) => {
       return res.status(403).json({ success: false, message: "Akses ditolak." });
     }
 
-    const { month, year } = req.query;
-    const targetMonth = month ? Number(month) - 1 : new Date().getMonth();
-    const targetYear = year ? Number(year) : new Date().getFullYear();
+    const dateResult = buildDateFilter(req.query);
+    if (dateResult?.error) {
+      return res.status(400).json({ success: false, message: dateResult.error });
+    }
 
-    const startDate = new Date(targetYear, targetMonth, 1);
-    const endDate = new Date(targetYear, targetMonth + 1, 0);
+    const whereClause: any = {};
+    if (dateResult?.filter) {
+      whereClause.date = dateResult.filter;
+    }
 
     const attendances = await prisma.teacherAttendance.findMany({
-      where: {
-        date: { gte: startDate, lte: endDate }
-      },
+      where: whereClause,
       include: {
         teacher: { select: { name: true, nip: true } }
       },

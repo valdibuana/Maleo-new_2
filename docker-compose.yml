@@ -60,6 +60,9 @@ services:
       TZ: Asia/Jakarta
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      # JWT secret for Next.js Edge Middleware to verify token signatures.
+      # Must match the API's JWT_SECRET exactly.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       # Internal URL used by Next.js server-side rewrites to reach the API
       # container via Docker's internal network (not accessible to the browser).
       API_INTERNAL_URL: http://api:4000

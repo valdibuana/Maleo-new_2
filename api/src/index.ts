@@ -63,7 +63,9 @@ import classificationRouter from "./routes/classification.route";
 import recycleBinRouter from "./routes/recycle-bin.route";
 import scheduleSlotsRouter from "./routes/schedule-slots.route";
 import exportRouter from "./routes/export.route";
+import teacherJournalsRouter from "./routes/teacher-journals.route";
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 4000;
 
 // Middleware
@@ -117,6 +119,7 @@ app.use("/api/announcements", announcementsRouter);
 app.use("/api/principals", principalsRouter);
 app.use("/api/principal", principalRouter);
 app.use("/api/teacher-attendances", teacherAttendancesRouter);
+app.use("/api/teacher-journals", teacherJournalsRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/dashboard", dashboardRouter);

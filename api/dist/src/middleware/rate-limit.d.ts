@@ -14,4 +14,9 @@ export declare const authLimiter: import("express-rate-limit").RateLimitRequestH
  * Applied to file upload routes.
  */
 export declare const uploadLimiter: import("express-rate-limit").RateLimitRequestHandler;
+/**
+ * Login limiter — 5 attempts per 15 minutes per IP.
+ * Applied specifically to /api/auth/login.
+ */
+export declare const loginLimiter: import("express-rate-limit").RateLimitRequestHandler;
 //# sourceMappingURL=rate-limit.d.ts.map

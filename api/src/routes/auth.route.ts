@@ -11,7 +11,7 @@ import {
 } from "../lib/jwt";
 import { validate } from "../middleware/validate";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
-import { authLimiter } from "../middleware/rate-limit";
+import { authLimiter, loginLimiter } from "../middleware/rate-limit";
 
 const router = Router();
 
@@ -38,7 +38,7 @@ const changePasswordSchema = z.object({
 // Menerima email & password, mengembalikan JWT + data user beserta role
 // Refresh token disimpan ke database dengan hash untuk rotation tracking
 // ──────────────────────────────────────────────
-router.post("/login", authLimiter, validate(loginSchema), async (req, res: Response) => {
+router.post("/login", loginLimiter, validate(loginSchema), async (req, res: Response) => {
   try {
     const { identifier, password } = req.body as z.infer<typeof loginSchema>;
 
@@ -68,8 +68,15 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res: Respo
       return;
     }
 
-    // Generate access token
-    const token = signAccessToken({ id: user.id, role: user.role });
+    // Generate access token (include profile ID for role-based access)
+    const token = signAccessToken({
+      id: user.id,
+      role: user.role,
+      ...(user.teacherId != null && { teacherId: user.teacherId }),
+      ...(user.studentId != null && { studentId: user.studentId }),
+      ...(user.principalId != null && { principalId: user.principalId }),
+      ...(user.guardianId != null && { guardianId: user.guardianId }),
+    });
 
     // Refresh Token Rotation: Simpan ke database
     const tokenId = generateTokenId();
@@ -382,7 +389,7 @@ router.post("/refresh", validate(refreshSchema), async (req, res: Response) => {
     // Step 4: Verify user exists
     const user = await prisma.user.findUnique({
       where: { id: storedToken.userId },
-      select: { id: true, name: true, email: true, nipNis: true, username: true, role: true, force_change_password: true },
+      select: { id: true, name: true, email: true, nipNis: true, username: true, role: true, force_change_password: true, teacherId: true, studentId: true, principalId: true, guardianId: true },
     });
 
     if (!user) {
@@ -411,7 +418,14 @@ router.post("/refresh", validate(refreshSchema), async (req, res: Response) => {
       }),
     ]);
 
-    const nextAccessToken = signAccessToken({ id: user.id, role: user.role });
+    const nextAccessToken = signAccessToken({
+      id: user.id,
+      role: user.role,
+      ...(user.teacherId != null && { teacherId: user.teacherId }),
+      ...(user.studentId != null && { studentId: user.studentId }),
+      ...(user.principalId != null && { principalId: user.principalId }),
+      ...(user.guardianId != null && { guardianId: user.guardianId }),
+    });
 
     res.json({
       success: true,

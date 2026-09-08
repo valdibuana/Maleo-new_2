@@ -1,6 +1,7 @@
 "use client";
 
 import { ForceChangePasswordModal } from "@/components/modals/ForceChangePasswordModal"
+import { TeacherCheckinModal } from "@/components/modals/TeacherCheckinModal"
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,6 +17,7 @@ export default function HubDashboard() {
   const [error, setError] = useState("");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [annLoading, setAnnLoading] = useState(true);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
 
   useEffect(() => {
     // Only show force-change-password modal when the user flag is set
@@ -27,35 +29,53 @@ export default function HubDashboard() {
     } catch {}
   }, []);
 
-  const fetchDashboard = async () => {
+  const fetchAllData = async () => {
     setLoading(true);
+    setAnnLoading(true);
     setError("");
     try {
-      const response = await apiService.getAll("/hub/dashboard");
-      setData(response.data);
+      const [dashRes, annRes] = await Promise.all([
+        apiService.getAll("/hub/dashboard"),
+        apiService.getAll("/hub/announcements")
+      ]);
+      
+      setData(dashRes.data);
+      setAnnouncements(annRes.data);
+      
+      try {
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        if (storedUser.role === "teacher") {
+          const today = new Date();
+          const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+          
+          const hasLibur = annRes.data.some((ann: any) => 
+            ann.title.toLowerCase().includes("libur") || 
+            ann.content.toLowerCase().includes("libur") ||
+            ann.title.toLowerCase().includes("tanggal merah") ||
+            ann.content.toLowerCase().includes("tanggal merah")
+          );
+
+          if (!isWeekend && !hasLibur) {
+            const attendanceRes = await apiService.getAll("/teacher-attendances/today");
+            if (attendanceRes.data && !attendanceRes.data.hasCheckedIn) {
+              setShowCheckinModal(true);
+            }
+          }
+        }
+      } catch (attErr) {
+        console.error("Gagal mengecek status kehadiran", attErr);
+      }
     } catch (err: any) {
       setError("Gagal memuat data dashboard. Silakan coba lagi nanti.");
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchAnnouncements = async () => {
-    setAnnLoading(true);
-    try {
-      const response = await apiService.getAll("/hub/announcements");
-      setAnnouncements(response.data);
-    } catch (error) {
-      console.error(error);
-    } finally {
       setAnnLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboard();
-    fetchAnnouncements();
+    fetchAllData();
   }, []);
 
   const handlePasswordChange = async (oldPass: string, newPass: string) => {
@@ -79,7 +99,7 @@ export default function HubDashboard() {
           <RefreshCcw size={32} />
         </div>
         <h2 className="text-xl font-bold text-foreground tracking-tight">{error}</h2>
-        <button onClick={fetchDashboard} className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-brand transition-colors">
+        <button onClick={fetchAllData} className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-brand transition-colors">
           Coba Lagi
         </button>
       </div>
@@ -105,6 +125,11 @@ export default function HubDashboard() {
           } catch {}
         }}
         onSubmit={handlePasswordChange}
+      />
+      <TeacherCheckinModal
+        isOpen={showCheckinModal}
+        onClose={() => setShowCheckinModal(false)}
+        onSuccess={() => setShowCheckinModal(false)}
       />
       <PageHeader
         title="Dashboard"

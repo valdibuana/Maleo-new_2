@@ -10,6 +10,11 @@ import { ClipboardCheck } from "lucide-react";
 export default function TeacherAttendancesPage() {
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterMode, setFilterMode] = useState<"bulanan" | "harian" | "range" | "mingguan">("bulanan");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterWeekStart, setFilterWeekStart] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
@@ -24,16 +29,30 @@ export default function TeacherAttendancesPage() {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setUserRole(user.role);
-    fetchAttendances();
-  }, [selectedMonth, selectedYear]);
+    // Debounce to avoid too many requests on typing date
+    const timer = setTimeout(() => {
+      fetchAttendances();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filterMode, selectedMonth, selectedYear, filterDate, filterStartDate, filterEndDate, filterWeekStart]);
 
   const fetchAttendances = async () => {
     setLoading(true);
     try {
-      const res = await apiService.getAll("/teacher-attendances", {
-        month: selectedMonth,
-        year: selectedYear,
-      });
+      const params: Record<string, string | number> = {};
+      if (filterMode === "bulanan") {
+        params.month = selectedMonth;
+        params.year = selectedYear;
+      } else if (filterMode === "harian") {
+        if (filterDate) params.date = filterDate;
+      } else if (filterMode === "range") {
+        if (filterStartDate) params.startDate = filterStartDate;
+        if (filterEndDate) params.endDate = filterEndDate;
+      } else if (filterMode === "mingguan") {
+        if (filterWeekStart) params.weekStart = filterWeekStart;
+      }
+
+      const res = await apiService.getAll("/teacher-attendances", params);
       setAttendances(res.data || []);
     } catch (error) {
       console.error(error);
@@ -45,7 +64,20 @@ export default function TeacherAttendancesPage() {
   const handleExport = async () => {
     try {
       const token = localStorage.getItem("jwt_token");
-      const res = await fetch(`/api/teacher-attendances/export?month=${selectedMonth}&year=${selectedYear}`, {
+      const params = new URLSearchParams();
+      if (filterMode === "bulanan") {
+        params.append("month", String(selectedMonth));
+        params.append("year", String(selectedYear));
+      } else if (filterMode === "harian") {
+        if (filterDate) params.append("date", filterDate);
+      } else if (filterMode === "range") {
+        if (filterStartDate) params.append("startDate", filterStartDate);
+        if (filterEndDate) params.append("endDate", filterEndDate);
+      } else if (filterMode === "mingguan") {
+        if (filterWeekStart) params.append("weekStart", filterWeekStart);
+      }
+
+      const res = await fetch(`/api/teacher-attendances/export?${params.toString()}`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -57,7 +89,13 @@ export default function TeacherAttendancesPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Rekap_Kehadiran_Guru_${selectedYear}_${selectedMonth}.xlsx`;
+      // Nama file dinamis sesuai mode filter aktif
+      let downloadName = "Rekap_Kehadiran_Guru";
+      if (filterMode === "bulanan") downloadName += `_${selectedYear}_${String(selectedMonth).padStart(2, "0")}`;
+      else if (filterMode === "harian" && filterDate) downloadName += `_${filterDate}`;
+      else if (filterMode === "mingguan" && filterWeekStart) downloadName += `_Minggu_${filterWeekStart}`;
+      else if (filterMode === "range" && filterStartDate && filterEndDate) downloadName += `_${filterStartDate}_sd_${filterEndDate}`;
+      link.download = `${downloadName}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -130,23 +168,74 @@ export default function TeacherAttendancesPage() {
           <CardTitle>Data Kehadiran</CardTitle>
           <div className="flex gap-2">
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value as any)}
               className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
             >
-              {months.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
+              <option value="bulanan">Bulanan</option>
+              <option value="harian">Harian</option>
+              <option value="mingguan">Mingguan</option>
+              <option value="range">Rentang Tanggal</option>
             </select>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+
+            {filterMode === "bulanan" && (
+              <>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                >
+                  {months.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                >
+                  {years.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {filterMode === "harian" && (
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+              />
+            )}
+
+            {filterMode === "mingguan" && (
+              <input
+                type="date"
+                value={filterWeekStart}
+                onChange={(e) => setFilterWeekStart(e.target.value)}
+                className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+              />
+            )}
+
+            {filterMode === "range" && (
+              <>
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                />
+                <span className="self-center text-sm">s/d</span>
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  className="flex h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                />
+              </>
+            )}
           </div>
         </CardHeader>
         <CardContent className="px-6 pb-6">
@@ -175,8 +264,10 @@ export default function TeacherAttendancesPage() {
                           <ClipboardCheck size={32} className="opacity-30" />
                           <p className="font-medium">Belum ada data kehadiran</p>
                           <p className="text-sm">
-                            Guru belum melakukan check-in di bulan{" "}
-                            {months.find((m) => m.value === selectedMonth)?.label} {selectedYear}
+                            {filterMode === "bulanan" && `Guru belum melakukan check-in di bulan ${months.find((m) => m.value === selectedMonth)?.label} ${selectedYear}`}
+                            {filterMode === "harian" && filterDate && `Tidak ada data kehadiran pada ${new Date(filterDate + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`}
+                            {filterMode === "mingguan" && filterWeekStart && `Tidak ada data kehadiran pada minggu yang dipilih`}
+                            {filterMode === "range" && `Tidak ada data kehadiran pada rentang tanggal yang dipilih`}
                           </p>
                         </div>
                       </td>

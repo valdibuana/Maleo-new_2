@@ -55,6 +55,7 @@ const adminMenuItems = [
   {
     label: "Akademik",
     items: [
+      { name: "Jurnal Guru", href: "/journals", icon: BookOpen },
       { name: "Jadwal", href: "/schedules", icon: Clock },
     ],
   },
@@ -86,6 +87,7 @@ const principalMenuItems = [
   {
     label: "Laporan & Evaluasi",
     items: [
+      { name: "Jurnal Guru", href: "/principal-dashboard/journals", icon: BookOpen },
       { name: "Rekap Kehadiran Siswa", href: "/principal-dashboard/attendances", icon: ClipboardCheck },
       { name: "Rekap Kehadiran Guru", href: "/principal-dashboard/teacher-attendances", icon: UserCheck },
       { name: "Data Nilai Siswa", href: "/principal-dashboard/grades", icon: Award },

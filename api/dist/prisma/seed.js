@@ -13,9 +13,7 @@ async function main() {
     const adminPassword = await bcryptjs_1.default.hash("password", 10);
     const admin = await prisma.user.upsert({
         where: { email: adminEmail },
-        update: {
-            password: adminPassword,
-        },
+        update: {},
         create: {
             name: "Admin Utama",
             email: adminEmail,
@@ -41,9 +39,7 @@ async function main() {
     });
     const principalUser = await prisma.user.upsert({
         where: { email: principalEmail },
-        update: {
-            password: principalPassword,
-        },
+        update: {},
         create: {
             name: "Kepala Sekolah Maleo",
             email: principalEmail,
@@ -136,9 +132,7 @@ async function main() {
     const studentPassword = await bcryptjs_1.default.hash("password", 10);
     const studentUser = await prisma.user.upsert({
         where: { email: studentEmail },
-        update: {
-            password: studentPassword,
-        },
+        update: {},
         create: {
             name: "Siswa Test",
             email: studentEmail,
@@ -189,9 +183,7 @@ async function main() {
     });
     const guardianUser = await prisma.user.upsert({
         where: { email: guardianEmail },
-        update: {
-            password: guardianPassword,
-        },
+        update: {},
         create: {
             name: "Wali Murid Test",
             email: guardianEmail,

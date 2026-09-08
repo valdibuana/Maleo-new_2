@@ -11,6 +11,61 @@ import ExcelJS from "exceljs";
 
 const router = Router();
 
+// ── Helper: Hitung rentang Senin-Minggu dari tanggal apapun ──
+const getWeekRange = (date: Date): { start: Date; end: Date } => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  // getDay(): 0=Minggu, 1=Senin, ..., 6=Sabtu
+  const dayOfWeek = d.getDay();
+  // Offset to Monday (Senin)
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const start = new Date(d);
+  start.setDate(d.getDate() + diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6); // Minggu
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+// ── Helper: Bangun filter tanggal dari query params ──
+const buildDateFilter = (query: Record<string, any>): any => {
+  const { date, startDate, endDate, weekStart, month, year } = query;
+
+  if (startDate && endDate) {
+    const start = new Date(String(startDate));
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(String(endDate));
+    end.setHours(23, 59, 59, 999);
+    // Validasi: max 366 hari
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays < 0) return { error: "endDate tidak boleh sebelum startDate" };
+    if (diffDays > 366) return { error: "Rentang tanggal maksimal 366 hari" };
+    return { filter: { gte: start, lte: end } };
+  }
+
+  if (weekStart) {
+    const { start, end } = getWeekRange(new Date(String(weekStart)));
+    return { filter: { gte: start, lte: end } };
+  }
+
+  if (date) {
+    const targetDate = new Date(String(date));
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(targetDate.getDate() + 1);
+    return { filter: { gte: targetDate, lt: nextDay } };
+  }
+
+  if (month && year) {
+    const startDate = new Date(Number(year), Number(month) - 1, 1);
+    const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+    return { filter: { gte: startDate, lte: endDate } };
+  }
+
+  return { filter: undefined };
+};
+
+
 const attendanceSchema = z.object({
   date: z.string().min(1),
   status: z.enum(["hadir", "izin", "sakit", "alpa"]),
@@ -184,6 +239,144 @@ router.post(
   }
 );
 
+// GET /api/attendances/summary — Rekap agregat per-siswa (hadir/izin/sakit/alpa count)
+// HARUS sebelum GET / agar tidak di-shadow
+router.get("/summary", verifyJWT, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: userId, role } = req.user!;
+    const { classId, startDate, endDate, weekStart, month, year } = req.query;
+
+    const dateResult = buildDateFilter(req.query as Record<string, any>);
+    if (dateResult.error) {
+      return res.status(400).json({ success: false, message: dateResult.error });
+    }
+
+    const where: any = {};
+    if (dateResult.filter) where.date = dateResult.filter;
+
+    // Role-based access
+    if (role === ROLES.STUDENT) {
+      const student = await prisma.student.findFirst({ where: { user: { id: userId } } });
+      if (!student) return res.json({ success: true, data: [] });
+      where.studentId = student.id;
+    } else if (role === ROLES.GUARDIAN) {
+      const guardian = await prisma.guardian.findFirst({
+        where: { user: { id: userId } },
+        include: { students: { select: { id: true } } },
+      });
+      const childIds = guardian?.students.map((s) => s.id) || [];
+      if (childIds.length === 0) return res.json({ success: true, data: [] });
+      where.studentId = { in: childIds };
+    } else if (role === ROLES.TEACHER) {
+      const teacher = await prisma.teacher.findFirst({
+        where: { user: { id: userId } },
+        include: { homeroomClasses: { select: { id: true } } },
+      });
+      if (!teacher) return res.json({ success: true, data: [] });
+      const classIds = teacher.homeroomClasses.map((c) => c.id);
+      where.student = { classId: { in: classIds } };
+    }
+
+    if (classId) {
+      where.student = { ...where.student, classId: Number(classId) };
+    }
+
+    const attendances = await prisma.attendance.findMany({
+      where,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            nis: true,
+            class: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    // Aggregate per siswa
+    const summaryMap = new Map<number, any>();
+    for (const att of attendances) {
+      const sid = att.studentId;
+      if (!summaryMap.has(sid)) {
+        summaryMap.set(sid, {
+          studentId: sid,
+          studentName: att.student.name,
+          studentNis: att.student.nis,
+          classId: att.student.class.id,
+          className: att.student.class.name,
+          weeks: {
+            1: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+            2: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+            3: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+            4: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+          },
+          total: {
+            hadir: 0,
+            izin: 0,
+            sakit: 0,
+            alpa: 0,
+            count: 0
+          }
+        });
+      }
+      const entry = summaryMap.get(sid)!;
+      
+      // Update global totals
+      entry.total[att.status]++;
+      entry.total.count++;
+
+      // Update weekly distribution based on day of month
+      const d = att.date.getDate();
+      let week = 1;
+      if (d >= 8 && d <= 14) week = 2;
+      else if (d >= 15 && d <= 21) week = 3;
+      else if (d >= 22) week = 4;
+      
+      entry.weeks[week][att.status]++;
+    }
+
+    const data = Array.from(summaryMap.values()).sort((a, b) =>
+      a.studentName.localeCompare(b.studentName)
+    );
+
+    // Compute date range labels for UI
+    const dateLabel = buildDateLabel(req.query as Record<string, any>);
+
+    res.json({ success: true, data, meta: { dateLabel } });
+  } catch (error) {
+    console.error("[Attendances] GET /summary error:", error);
+    res.status(500).json({ success: false, message: "Terjadi kesalahan server" });
+  }
+});
+
+// ── Helper: Buat label tanggal untuk UI ──
+const buildDateLabel = (query: Record<string, any>): string => {
+  const { startDate, endDate, weekStart, month, year, date } = query;
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+
+  if (startDate && endDate)
+    return `${fmt(new Date(String(startDate)))} – ${fmt(new Date(String(endDate)))}`;
+
+  if (weekStart) {
+    const { start, end } = getWeekRange(new Date(String(weekStart)));
+    return `Senin ${fmt(start)} – Minggu ${fmt(end)}`;
+  }
+
+  if (month && year) {
+    return new Date(Number(year), Number(month) - 1).toLocaleDateString("id-ID", {
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  if (date) return fmt(new Date(String(date)));
+
+  return "Semua Data";
+};
+
 // GET /api/attendances/export/excel — HARUS di atas GET / agar tidak di-shadow
 router.get("/export/excel", verifyJWT, async (req: Request, res: Response) => {
   try {
@@ -208,6 +401,12 @@ router.get("/export/excel", verifyJWT, async (req: Request, res: Response) => {
       const startDate = new Date(Number(year), Number(month) - 1, 1);
       const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
       where.date = { gte: startDate, lte: endDate };
+    } else {
+      const dateResult = buildDateFilter(req.query as Record<string, any>);
+      if (dateResult.error) {
+        return res.status(400).json({ success: false, message: dateResult.error });
+      }
+      if (dateResult.filter) where.date = dateResult.filter;
     }
 
     const attendances = await prisma.attendance.findMany({
@@ -227,36 +426,109 @@ router.get("/export/excel", verifyJWT, async (req: Request, res: Response) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Rekap Kehadiran");
 
-    worksheet.columns = [
-      { header: "No", key: "no", width: 5 },
-      { header: "Nama Siswa", key: "studentName", width: 30 },
-      { header: "NIS", key: "nis", width: 15 },
-      { header: "Kelas", key: "className", width: 15 },
-      { header: "Tanggal", key: "date", width: 15 },
-      { header: "Status", key: "status", width: 15 },
-      { header: "Keterangan", key: "note", width: 25 },
-    ];
+    // Jika export bulanan, gunakan format matriks mingguan
+    if (month && year) {
+      // Sama seperti logika GET /summary, aggregate dulu
+      const summaryMap = new Map<number, any>();
+      for (const att of attendances) {
+        const sid = att.studentId;
+        if (!summaryMap.has(sid)) {
+          summaryMap.set(sid, {
+            studentName: att.student.name,
+            nis: att.student.nis,
+            className: att.student.class.name,
+            weeks: {
+              1: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+              2: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+              3: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+              4: { hadir: 0, izin: 0, sakit: 0, alpa: 0 },
+            },
+            total: { hadir: 0, izin: 0, sakit: 0, alpa: 0 }
+          });
+        }
+        const entry = summaryMap.get(sid)!;
+        entry.total[att.status]++;
+        
+        const d = att.date.getDate();
+        let week = 1;
+        if (d >= 8 && d <= 14) week = 2;
+        else if (d >= 15 && d <= 21) week = 3;
+        else if (d >= 22) week = 4;
+        entry.weeks[week][att.status]++;
+      }
 
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFD3D3D3" },
-    };
+      const data = Array.from(summaryMap.values()).sort((a, b) =>
+        a.studentName.localeCompare(b.studentName)
+      );
 
-    attendances.forEach((att, index) => {
-      const d = att.date;
-      const formattedDate = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-      worksheet.addRow({
-        no: index + 1,
-        studentName: att.student.name,
-        nis: att.student.nis,
-        className: att.student.class.name,
-        date: formattedDate,
-        status: att.status.toUpperCase(),
-        note: att.note || "-",
+      worksheet.columns = [
+        { header: "No", key: "no", width: 5 },
+        { header: "Nama Siswa", key: "studentName", width: 30 },
+        { header: "NIS", key: "nis", width: 15 },
+        { header: "Kelas", key: "className", width: 10 },
+        { header: "Minggu 1 (1-7)", key: "w1", width: 20 },
+        { header: "Minggu 2 (8-14)", key: "w2", width: 20 },
+        { header: "Minggu 3 (15-21)", key: "w3", width: 20 },
+        { header: "Minggu 4 (22-Akhir)", key: "w4", width: 20 },
+        { header: "Total", key: "tot", width: 20 },
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD3D3D3" },
+      };
+
+      const fmtBlock = (stats: any) => `H:${stats.hadir} S:${stats.sakit} I:${stats.izin} A:${stats.alpa}`;
+
+      data.forEach((row, index) => {
+        worksheet.addRow({
+          no: index + 1,
+          studentName: row.studentName,
+          nis: row.nis,
+          className: row.className,
+          w1: fmtBlock(row.weeks[1]),
+          w2: fmtBlock(row.weeks[2]),
+          w3: fmtBlock(row.weeks[3]),
+          w4: fmtBlock(row.weeks[4]),
+          tot: fmtBlock(row.total),
+        });
       });
-    });
+
+    } else {
+      // Export list biasa
+      worksheet.columns = [
+        { header: "No", key: "no", width: 5 },
+        { header: "Nama Siswa", key: "studentName", width: 30 },
+        { header: "NIS", key: "nis", width: 15 },
+        { header: "Kelas", key: "className", width: 15 },
+        { header: "Tanggal", key: "date", width: 15 },
+        { header: "Status", key: "status", width: 15 },
+        { header: "Keterangan", key: "note", width: 25 },
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD3D3D3" },
+      };
+
+      attendances.forEach((att, index) => {
+        const d = att.date;
+        const formattedDate = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+        worksheet.addRow({
+          no: index + 1,
+          studentName: att.student.name,
+          nis: att.student.nis,
+          className: att.student.class.name,
+          date: formattedDate,
+          status: att.status.toUpperCase(),
+          note: att.note || "-",
+        });
+      });
+    }
 
     const fileName = date
       ? `Rekap_Kehadiran_${date}.xlsx`
@@ -319,13 +591,11 @@ router.get("/", verifyJWT, async (req: AuthRequest, res: Response) => {
     if (status) where.status = String(status);
 
     // FIX: gunakan range gte/lt bukan equality agar cocok dengan DateTime
-    if (date) {
-      const targetDate = new Date(String(date));
-      targetDate.setHours(0, 0, 0, 0);
-      const nextDay = new Date(targetDate);
-      nextDay.setDate(targetDate.getDate() + 1);
-      where.date = { gte: targetDate, lt: nextDay };
+    const dateResult = buildDateFilter(req.query as Record<string, any>);
+    if (dateResult.error) {
+      return res.status(400).json({ success: false, message: dateResult.error });
     }
+    if (dateResult.filter) where.date = dateResult.filter;
 
     if (search) {
       where.student = {

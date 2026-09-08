@@ -9,6 +9,7 @@ export interface User {
 export interface Student {
   id: number;
   nis: string;
+  nisn?: string;
   name: string;
   gender: "L" | "P";
   birthDate: string;

@@ -38,6 +38,7 @@ const menuItemsTeacher = [
   {
     label: "Pembelajaran",
     items: [
+      { name: "Jurnal Mengajar", href: "/hub/journals", icon: BookOpen },
       { name: "Modul Pembelajaran (ATP)", href: "/hub/atp", icon: BookOpen },
       { name: "Tugas", href: "/hub/assignments", icon: ClipboardList },
       { name: "Nilai Siswa", href: "/hub/grades", icon: Award },

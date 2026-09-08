@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadLimiter = exports.authLimiter = exports.apiLimiter = void 0;
+exports.loginLimiter = exports.uploadLimiter = exports.authLimiter = exports.apiLimiter = void 0;
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 /**
  * Global API rate limiter — 100 requests per 15 minutes per IP.
@@ -47,6 +47,21 @@ exports.uploadLimiter = (0, express_rate_limit_1.default)({
     message: {
         success: false,
         message: "Terlalu banyak unggahan. Silakan coba lagi nanti.",
+    },
+});
+/**
+ * Login limiter — 5 attempts per 15 minutes per IP.
+ * Applied specifically to /api/auth/login.
+ */
+exports.loginLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    message: {
+        success: false,
+        message: "Terlalu banyak percobaan login gagal. Silakan coba lagi dalam 15 menit.",
     },
 });
 //# sourceMappingURL=rate-limit.js.map

@@ -47,3 +47,19 @@ export const uploadLimiter = rateLimit({
     message: "Terlalu banyak unggahan. Silakan coba lagi nanti.",
   },
 });
+
+/**
+ * Login limiter — 5 attempts per 15 minutes per IP.
+ * Applied specifically to /api/auth/login.
+ */
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    message: "Terlalu banyak percobaan login gagal. Silakan coba lagi dalam 15 menit.",
+  },
+});

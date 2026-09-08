@@ -18,7 +18,11 @@ ARG API_INTERNAL_URL=http://localhost:4000
 ENV API_INTERNAL_URL=${API_INTERNAL_URL}
 
 COPY package*.json ./
-RUN npm ci
+RUN npm config set registry https://registry.npmjs.org/ \
+    && npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm ci
 
 COPY . .
 

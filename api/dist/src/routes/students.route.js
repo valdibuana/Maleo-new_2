@@ -84,6 +84,11 @@ const parseBirthDate = (value) => {
 };
 const studentSchema = zod_1.z.object({
     nis: zod_1.z.string().min(1, "NIS wajib diisi"),
+    nisn: zod_1.z
+        .string()
+        .regex(/^\d{10}$/, "NISN harus tepat 10 digit angka (0-9)")
+        .optional()
+        .or(zod_1.z.literal("")),
     name: zod_1.z.string().min(1, "Nama wajib diisi"),
     gender: zod_1.z.enum(["L", "P"]),
     birthDate: zod_1.z.string().min(1, "Tanggal lahir wajib diisi"),
@@ -120,11 +125,16 @@ router.post("/import", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), upload.
                 continue;
             const name = row[0] ? String(row[0]).trim() : "";
             const nis = row[1] ? String(row[1]).trim().replace(/^'/, "") : "";
-            const genderRaw = row[2] ? String(row[2]).trim().toUpperCase() : "";
-            const birthDateRaw = row[3];
-            const classNameRaw = row[4] ? String(row[4]).trim() : "";
-            const phone = row[5] ? String(row[5]).trim() : "";
-            const address = row[6] ? String(row[6]).trim() : "";
+            // Kolom NISN (opsional) — format baru punya 8 kolom, format lama 7 kolom
+            const hasNisnColumn = row.length >= 8 && row[2] !== undefined && !/^[LlPp]$/.test(String(row[2]).trim());
+            const nisnRaw = hasNisnColumn ? String(row[2]).trim().replace(/^'/, "") : "";
+            const nisn = /^\d{10}$/.test(nisnRaw) ? nisnRaw : null;
+            const genderOffset = hasNisnColumn ? 1 : 0;
+            const genderRaw = row[2 + genderOffset] ? String(row[2 + genderOffset]).trim().toUpperCase() : "";
+            const birthDateRaw = row[3 + genderOffset];
+            const classNameRaw = row[4 + genderOffset] ? String(row[4 + genderOffset]).trim() : "";
+            const phone = row[5 + genderOffset] ? String(row[5 + genderOffset]).trim() : "";
+            const address = row[6 + genderOffset] ? String(row[6 + genderOffset]).trim() : "";
             if (!name || !nis || !classNameRaw) {
                 errors.push(`Baris ${i + 1}: Data wajib (Nama, NIS, Kelas) belum lengkap`);
                 errorCount++;
@@ -182,6 +192,7 @@ router.post("/import", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), upload.
                         const student = await tx.student.create({
                             data: {
                                 nis,
+                                ...(nisn ? { nisn } : {}),
                                 name,
                                 gender: gender,
                                 birthDate,
@@ -238,7 +249,7 @@ router.get("/export", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
                 name: "asc"
             }
         });
-        const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
+        const headers = ["Nama Lengkap", "NIS", "NISN", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
         const rows = students.map((s) => {
             let birthDateStr = "-";
             if (s.birthDate) {
@@ -250,6 +261,7 @@ router.get("/export", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
             return [
                 s.name,
                 s.nis,
+                s.nisn || "",
                 s.gender,
                 birthDateStr,
                 s.class?.name || "",
@@ -263,7 +275,7 @@ router.get("/export", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), async (r
         // Auto-size columns slightly
         const colWidths = headers.map(h => ({ wch: Math.max(h.length, 15) }));
         colWidths[0] = { wch: 25 }; // Nama Lengkap
-        colWidths[6] = { wch: 30 }; // Alamat
+        colWidths[7] = { wch: 30 }; // Alamat
         ws["!cols"] = colWidths;
         xlsx_1.default.utils.book_append_sheet(wb, ws, "Siswa");
         const buffer = xlsx_1.default.write(wb, { type: "buffer", bookType: "xlsx" });
@@ -344,6 +356,7 @@ router.get("/", auth_1.verifyJWT, async (req, res) => {
         const result = students.map((s) => ({
             id: s.id,
             nis: s.nis,
+            nisn: s.nisn || null,
             name: s.name,
             gender: s.gender,
             birthDate: isAdminOrStaff && s.birthDate ? s.birthDate.toISOString().split("T")[0] : null,
@@ -438,7 +451,13 @@ router.post("/", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), (0, validate_
     }
     catch (error) {
         if (error.code === "P2002") {
-            res.status(400).json({ success: false, message: "NIS sudah digunakan di sistem" });
+            const target = error.meta?.target;
+            if (target?.includes("nisn")) {
+                res.status(400).json({ success: false, message: "NISN sudah digunakan oleh siswa lain. Periksa kembali nomor NISN yang dimasukkan." });
+            }
+            else {
+                res.status(400).json({ success: false, message: "NIS sudah digunakan di sistem" });
+            }
             return;
         }
         console.error("[Students] POST error:", error);
@@ -460,6 +479,16 @@ router.put("/:id", auth_1.verifyJWT, (0, role_1.checkRole)("admin"), (0, validat
     catch (error) {
         if (error.code === "P2025") {
             res.status(404).json({ success: false, message: "Siswa tidak ditemukan" });
+            return;
+        }
+        if (error.code === "P2002") {
+            const target = error.meta?.target;
+            if (target?.includes("nisn")) {
+                res.status(400).json({ success: false, message: "NISN sudah digunakan oleh siswa lain. Periksa kembali nomor NISN yang dimasukkan." });
+            }
+            else {
+                res.status(400).json({ success: false, message: "NIS sudah digunakan di sistem" });
+            }
             return;
         }
         res.status(500).json({ success: false, message: "Terjadi kesalahan server" });

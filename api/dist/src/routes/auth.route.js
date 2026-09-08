@@ -32,7 +32,7 @@ const changePasswordSchema = zod_1.z.object({
 // Menerima email & password, mengembalikan JWT + data user beserta role
 // Refresh token disimpan ke database dengan hash untuk rotation tracking
 // ──────────────────────────────────────────────
-router.post("/login", rate_limit_1.authLimiter, (0, validate_1.validate)(loginSchema), async (req, res) => {
+router.post("/login", rate_limit_1.loginLimiter, (0, validate_1.validate)(loginSchema), async (req, res) => {
     try {
         const { identifier, password } = req.body;
         // Normalize identifier
@@ -57,8 +57,15 @@ router.post("/login", rate_limit_1.authLimiter, (0, validate_1.validate)(loginSc
             res.status(401).json({ success: false, message: "Kredensial login salah" });
             return;
         }
-        // Generate access token
-        const token = (0, jwt_1.signAccessToken)({ id: user.id, role: user.role });
+        // Generate access token (include profile ID for role-based access)
+        const token = (0, jwt_1.signAccessToken)({
+            id: user.id,
+            role: user.role,
+            ...(user.teacherId != null && { teacherId: user.teacherId }),
+            ...(user.studentId != null && { studentId: user.studentId }),
+            ...(user.principalId != null && { principalId: user.principalId }),
+            ...(user.guardianId != null && { guardianId: user.guardianId }),
+        });
         // Refresh Token Rotation: Simpan ke database
         const tokenId = (0, jwt_1.generateTokenId)();
         const familyId = tokenId; // familyId = jti untuk token pertama
@@ -330,7 +337,7 @@ router.post("/refresh", (0, validate_1.validate)(refreshSchema), async (req, res
         // Step 4: Verify user exists
         const user = await prisma_1.prisma.user.findUnique({
             where: { id: storedToken.userId },
-            select: { id: true, name: true, email: true, nipNis: true, username: true, role: true, force_change_password: true },
+            select: { id: true, name: true, email: true, nipNis: true, username: true, role: true, force_change_password: true, teacherId: true, studentId: true, principalId: true, guardianId: true },
         });
         if (!user) {
             await prisma_1.prisma.refreshToken.updateMany({
@@ -355,7 +362,14 @@ router.post("/refresh", (0, validate_1.validate)(refreshSchema), async (req, res
                 data: { token: newTokenHash, familyId: storedToken.familyId, userId: user.id, expiresAt },
             }),
         ]);
-        const nextAccessToken = (0, jwt_1.signAccessToken)({ id: user.id, role: user.role });
+        const nextAccessToken = (0, jwt_1.signAccessToken)({
+            id: user.id,
+            role: user.role,
+            ...(user.teacherId != null && { teacherId: user.teacherId }),
+            ...(user.studentId != null && { studentId: user.studentId }),
+            ...(user.principalId != null && { principalId: user.principalId }),
+            ...(user.guardianId != null && { guardianId: user.guardianId }),
+        });
         res.json({
             success: true,
             message: "Token berhasil diperbarui",

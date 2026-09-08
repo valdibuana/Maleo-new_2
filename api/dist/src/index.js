@@ -15,7 +15,7 @@ const sanitize_1 = require("./middleware/sanitize");
 // ──────────────────────────────────────────────
 // Startup Environment Validation
 // ──────────────────────────────────────────────
-const REQUIRED_ENV_VARS = ["JWT_SECRET", "DATABASE_URL"];
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "JWT_REFRESH_SECRET", "DATABASE_URL"];
 for (const envVar of REQUIRED_ENV_VARS) {
     if (!process.env[envVar]) {
         console.error(`[FATAL] Missing required environment variable: ${envVar}`);
@@ -25,7 +25,8 @@ for (const envVar of REQUIRED_ENV_VARS) {
 }
 if (process.env.JWT_SECRET === "fallback_secret" ||
     process.env.JWT_SECRET === "CHANGE_ME_generate_a_strong_random_secret" ||
-    process.env.JWT_SECRET === "replace_with_strong_secret_for_production") {
+    process.env.JWT_SECRET === "replace_with_strong_secret_for_production" ||
+    process.env.JWT_SECRET === "maleo_dev_jwt_secret_2026_change_me") {
     console.error(`[FATAL] JWT_SECRET is using a default/placeholder value.`);
     console.error(`        Generate a strong secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`);
     process.exit(1);
@@ -60,7 +61,9 @@ const classification_route_1 = __importDefault(require("./routes/classification.
 const recycle_bin_route_1 = __importDefault(require("./routes/recycle-bin.route"));
 const schedule_slots_route_1 = __importDefault(require("./routes/schedule-slots.route"));
 const export_route_1 = __importDefault(require("./routes/export.route"));
+const teacher_journals_route_1 = __importDefault(require("./routes/teacher-journals.route"));
 const app = (0, express_1.default)();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(logger_1.requestLogger); // Request logging for audit trail
@@ -105,6 +108,7 @@ app.use("/api/announcements", announcements_route_1.default);
 app.use("/api/principals", principals_route_1.default);
 app.use("/api/principal", principal_route_1.default);
 app.use("/api/teacher-attendances", teacher_attendances_route_1.default);
+app.use("/api/teacher-journals", teacher_journals_route_1.default);
 app.use("/api/notifications", notification_route_1.default);
 app.use("/api/users", user_route_1.default);
 app.use("/api/dashboard", dashboard_route_1.default);

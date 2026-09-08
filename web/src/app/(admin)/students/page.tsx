@@ -34,6 +34,7 @@ export default function StudentsPage() {
   const [formData, setFormData] = useState({
     name: "",
     nis: "",
+    nisn: "",
     gender: "",
     birthDate: "",
     classId: "",
@@ -44,6 +45,7 @@ export default function StudentsPage() {
   // Upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [nameError, setNameError] = useState("");
+  const [nisnError, setNisnError] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
 
   // 1. Fetch data on mount
@@ -91,6 +93,7 @@ export default function StudentsPage() {
     setFormData({
       name: "",
       nis: "",
+      nisn: "",
       gender: "",
       birthDate: "",
       classId: "",
@@ -105,6 +108,7 @@ export default function StudentsPage() {
     setFormData({
       name: student.name,
       nis: student.nis,
+      nisn: student.nisn || "",
       gender: student.gender,
       birthDate: student.birthDate ? student.birthDate.split("T")[0] : "",
       classId: String(student.gradeId),
@@ -184,8 +188,8 @@ export default function StudentsPage() {
 
   // Download CSV template
   const handleDownloadTemplate = () => {
-    const headers = ["Nama Lengkap", "Nis", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas", "Telepon", "Alamat"];
-    const exampleRow = ["Budi Santoso", "2024001", "L", "25/06/2010", "7A", "081234567890", "Jl. Merdeka No. 1"];
+    const headers = ["Nama Lengkap", "NIS", "NISN", "Jenis Kelamin", "Tanggal lahir (DD/MM/YYYY)", "Kelas"];
+    const exampleRow = ["Budi Santoso", "2024001", "0012345678", "L", "25/06/2010", "7A"];
     const csvContent = headers.join(",") + "\n" + exampleRow.join(",") + "\n";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -416,9 +420,11 @@ export default function StudentsPage() {
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">No</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Siswa</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">NIS</th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">NISN</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Kode Login</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Kelas</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Jenis Kelamin</th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Tanggal Lahir</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Status</th>
                   <th className="text-right py-3 px-4 font-semibold text-muted-foreground">Aksi</th>
                 </tr>
@@ -434,19 +440,21 @@ export default function StudentsPage() {
                           <div>
                             <p className="font-medium text-foreground">{student.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {student.phone
-                                ? `📱 ${student.phone}`
-                                : `NIS: ${student.nis}`}
+                              NIS: {student.nis}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-xs">{student.nis}</td>
+                      <td className="py-3 px-4 font-mono text-xs">{student.nisn || '-'}</td>
                       <td className="py-3 px-4 font-mono text-xs font-semibold text-brand">{student.userCode || '-'}</td>
                       <td className="py-3 px-4">
                         <Badge variant="info">{student.gradeName}</Badge>
                       </td>
                       <td className="py-3 px-4">{student.gender === "L" ? "Laki-laki" : "Perempuan"}</td>
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {student.birthDate ? new Date(student.birthDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
+                      </td>
                       <td className="py-3 px-4">
                         <Badge variant={student.status === "active" ? "success" : "danger"}>
                           {student.status === "active" ? "Aktif" : "Nonaktif"}
@@ -523,6 +531,24 @@ export default function StudentsPage() {
               onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
               required
             />
+            <div>
+              <Input
+                label="NISN (Opsional)"
+                placeholder="10 digit angka"
+                value={formData.nisn}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val && !/^\d*$/.test(val)) return; // Only numbers
+                  setFormData({ ...formData, nisn: val });
+                  if (val && val.length !== 10) {
+                    setNisnError("NISN harus tepat 10 digit");
+                  } else {
+                    setNisnError("");
+                  }
+                }}
+              />
+              {nisnError && <p className="text-xs text-red-500 mt-1">{nisnError}</p>}
+            </div>
             <Select
               label="Jenis Kelamin"
               options={[
@@ -555,19 +581,7 @@ export default function StudentsPage() {
               required
               disabled={classes.length === 0}
             />
-            <Input
-              label="Telepon"
-              placeholder="08xxxxxxxxxx"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
           </div>
-          <Input
-            label="Alamat"
-            placeholder="Masukkan alamat lengkap"
-            value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          />
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button
               variant="secondary"
@@ -577,7 +591,7 @@ export default function StudentsPage() {
             >
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting || classes.length === 0}>
+            <Button type="submit" disabled={isSubmitting || classes.length === 0 || !!nisnError}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin mr-2" size={16} />

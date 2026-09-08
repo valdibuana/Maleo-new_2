@@ -10,19 +10,19 @@ export declare function createTestStudent(): Promise<{
     user: {
         id: number;
         role: import(".prisma/client").$Enums.Role;
+        teacherId: number | null;
+        studentId: number | null;
+        principalId: number | null;
+        guardianId: number | null;
         password: string;
         name: string;
         email: string | null;
-        username: string | null;
         createdAt: Date;
         updatedAt: Date;
         force_change_password: boolean;
-        guardianId: number | null;
         nipNis: string | null;
-        principalId: number | null;
-        studentId: number | null;
-        teacherId: number | null;
         userCode: string | null;
+        username: string | null;
     };
     student: {
         id: number;
@@ -43,9 +43,9 @@ export declare function createTestMaterial(): Promise<{
     module: {
         description: string | null;
         id: number;
+        teacherId: number;
         createdAt: Date;
         updatedAt: Date;
-        teacherId: number;
         classId: number | null;
         subjectId: number;
         title: string;

@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { decodeJwtPayload, isTokenExpired } from '@/lib/auth-utils';
+import { verifyJwt, decodeJwtPayload, isTokenExpired } from '@/lib/auth-utils';
 import { ROLES } from '@/lib/roles';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const token = request.cookies.get('jwt_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
   const { pathname } = request.nextUrl;
 
-  // Extract role from JWT token payload (not from cookie)
-  const payload = token ? decodeJwtPayload(token) : null;
+  // Verify JWT signature + decode payload (cryptographic verification)
+  // If signature is invalid/tampered, payload will be null.
+  const payload = token ? await verifyJwt(token) : null;
   const role = payload?.role;
 
-  // If token is expired or invalid, treat as not logged in
+  // If token is expired or invalid (including tampered), treat as not logged in
   const isValidSession = payload && !isTokenExpired(payload);
   const hasRefreshSession = Boolean(refreshToken);
 

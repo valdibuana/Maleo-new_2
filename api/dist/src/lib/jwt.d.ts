@@ -1,6 +1,10 @@
 export interface JwtPayload {
     id: number;
     role: string;
+    teacherId?: number;
+    studentId?: number;
+    principalId?: number;
+    guardianId?: number;
     tokenType?: "access" | "refresh";
     jti?: string;
 }

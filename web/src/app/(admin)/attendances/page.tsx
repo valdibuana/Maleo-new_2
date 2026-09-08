@@ -31,10 +31,33 @@ export default function AttendancesPage() {
   const [search, setSearch] = useState("");
   const [filterClassId, setFilterClassId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterMode, setFilterMode] = useState<"harian" | "range" | "mingguan" | "rekap_bulanan">("harian");
   // Default tanggal = hari ini
   const [filterDate, setFilterDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1));
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
+  const [summaryData, setSummaryData] = useState<any[]>([]);
+
+  const months = [
+    { value: "1", label: "Januari" },
+    { value: "2", label: "Februari" },
+    { value: "3", label: "Maret" },
+    { value: "4", label: "April" },
+    { value: "5", label: "Mei" },
+    { value: "6", label: "Juni" },
+    { value: "7", label: "Juli" },
+    { value: "8", label: "Agustus" },
+    { value: "9", label: "September" },
+    { value: "10", label: "Oktober" },
+    { value: "11", label: "November" },
+    { value: "12", label: "Desember" },
+  ];
+  const years = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 2 + i));
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterWeekStart, setFilterWeekStart] = useState("");
 
   // Fetch list kelas untuk dropdown filter
   const fetchClasses = async () => {
@@ -53,20 +76,38 @@ export default function AttendancesPage() {
     try {
       const params: Record<string, string> = {};
       if (filterClassId) params.classId = filterClassId;
-      if (filterStatus) params.status = filterStatus;
-      if (filterDate) params.date = filterDate;
+      if (filterStatus && filterMode === "harian") params.status = filterStatus;
       if (search) params.search = search;
 
-      const res = await apiService.getAll("/attendances", params);
-      setAttendances(res.data || []);
+      const endpoint = "/attendances";
+      
+      if (filterMode === "harian") {
+        if (filterDate) params.date = filterDate;
+      } else if (filterMode === "range") {
+        if (filterStartDate) params.startDate = filterStartDate;
+        if (filterEndDate) params.endDate = filterEndDate;
+      } else if (filterMode === "mingguan") {
+        if (filterWeekStart) params.weekStart = filterWeekStart;
+      }
+
+      if (filterMode === "rekap_bulanan") {
+        if (filterMonth) params.month = filterMonth;
+        if (filterYear) params.year = filterYear;
+        const res = await apiService.getAll("/attendances/summary", params);
+        setSummaryData(res.data || []);
+      } else {
+        const res = await apiService.getAll(endpoint, params);
+        setAttendances(res.data || []);
+      }
     } catch (err) {
       console.error("Gagal fetch attendances:", err);
       setError("Gagal memuat data kehadiran. Silakan coba lagi.");
       setAttendances([]);
+      setSummaryData([]);
     } finally {
       setLoading(false);
     }
-  }, [filterClassId, filterStatus, filterDate, search]);
+  }, [filterClassId, filterStatus, filterDate, filterStartDate, filterEndDate, filterWeekStart, filterMonth, filterYear, search, filterMode]);
 
   // Fetch kelas sekali saat mount
   useEffect(() => {
@@ -90,8 +131,19 @@ export default function AttendancesPage() {
 
       const params = new URLSearchParams();
       if (filterClassId) params.append("classId", filterClassId);
-      if (filterStatus) params.append("status", filterStatus);
-      if (filterDate) params.append("date", filterDate);
+      
+      if (filterMode === "harian") {
+        if (filterStatus) params.append("status", filterStatus);
+        if (filterDate) params.append("date", filterDate);
+      } else if (filterMode === "range") {
+        if (filterStartDate) params.append("startDate", filterStartDate);
+        if (filterEndDate) params.append("endDate", filterEndDate);
+      } else if (filterMode === "mingguan") {
+        if (filterWeekStart) params.append("weekStart", filterWeekStart);
+      } else if (filterMode === "rekap_bulanan") {
+        if (filterMonth) params.append("month", filterMonth);
+        if (filterYear) params.append("year", filterYear);
+      }
 
       const response = await fetch(
         `/api/attendances/export/excel?${params}`,
@@ -129,13 +181,21 @@ export default function AttendancesPage() {
   };
 
   // Summary dari data real yang sudah difilter backend
-  const summary = {
-    hadir: attendances.filter((a) => a.status === "hadir").length,
-    izin: attendances.filter((a) => a.status === "izin").length,
-    sakit: attendances.filter((a) => a.status === "sakit").length,
-    alpa: attendances.filter((a) => a.status === "alpa").length,
-    total: attendances.length,
-  };
+  const summary = filterMode === "rekap_bulanan"
+    ? {
+        hadir: summaryData.reduce((acc, row) => acc + (row.total?.hadir || 0), 0),
+        izin: summaryData.reduce((acc, row) => acc + (row.total?.izin || 0), 0),
+        sakit: summaryData.reduce((acc, row) => acc + (row.total?.sakit || 0), 0),
+        alpa: summaryData.reduce((acc, row) => acc + (row.total?.alpa || 0), 0),
+        total: summaryData.reduce((acc, row) => acc + (row.total?.count || 0), 0),
+      }
+    : {
+        hadir: attendances.filter((a) => a.status === "hadir").length,
+        izin: attendances.filter((a) => a.status === "izin").length,
+        sakit: attendances.filter((a) => a.status === "sakit").length,
+        alpa: attendances.filter((a) => a.status === "alpa").length,
+        total: attendances.length,
+      };
 
   const summaryItems = [
     { key: "hadir", label: "Hadir", color: "emerald", count: summary.hadir },
@@ -246,24 +306,88 @@ export default function AttendancesPage() {
           </div>
           <div className="w-36">
             <Select
-              placeholder="Semua Status"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              placeholder="Mode"
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value as any)}
               options={[
-                { value: "hadir", label: "Hadir" },
-                { value: "izin", label: "Izin" },
-                { value: "sakit", label: "Sakit" },
-                { value: "alpa", label: "Alpa" },
+                { value: "harian", label: "Harian" },
+                { value: "range", label: "Rentang Tanggal" },
+                { value: "mingguan", label: "Mingguan" },
+                { value: "rekap_bulanan", label: "Rekap Bulanan" },
               ]}
             />
           </div>
-          <div className="w-44">
-            <Input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-            />
-          </div>
+          {filterMode === "rekap_bulanan" && (
+            <>
+              <div className="w-40">
+                <Select
+                  placeholder="Pilih Bulan"
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  options={months}
+                />
+              </div>
+              <div className="w-32">
+                <Select
+                  placeholder="Tahun"
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  options={years.map((y) => ({ value: y, label: y }))}
+                />
+              </div>
+            </>
+          )}
+          {filterMode === "harian" && (
+            <>
+              <div className="w-36">
+                <Select
+                  placeholder="Semua Status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  options={[
+                    { value: "hadir", label: "Hadir" },
+                    { value: "izin", label: "Izin" },
+                    { value: "sakit", label: "Sakit" },
+                    { value: "alpa", label: "Alpa" },
+                  ]}
+                />
+              </div>
+              <div className="w-44">
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          {filterMode === "range" && (
+            <>
+              <div className="w-40">
+                <Input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                />
+              </div>
+              <div className="w-40">
+                <Input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          {filterMode === "mingguan" && (
+            <div className="w-44">
+              <Input
+                type="date"
+                value={filterWeekStart}
+                onChange={(e) => setFilterWeekStart(e.target.value)}
+              />
+            </div>
+          )}
           {hasActiveFilter && (
             <Button variant="secondary" size="sm" onClick={handleResetFilter}>
               Reset
@@ -278,6 +402,60 @@ export default function AttendancesPage() {
               <Loader2 className="animate-spin mb-2" size={32} />
               <p>Memuat data kehadiran...</p>
             </div>
+          ) : filterMode === "rekap_bulanan" ? (
+            summaryData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                <ClipboardCheck size={40} className="opacity-30 mb-3" />
+                <p className="font-medium">Belum ada rekap data kehadiran bulan ini</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">No</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Siswa</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Kelas</th>
+                    <th className="text-center py-3 px-2 font-semibold text-muted-foreground">M1 (1-7)</th>
+                    <th className="text-center py-3 px-2 font-semibold text-muted-foreground">M2 (8-14)</th>
+                    <th className="text-center py-3 px-2 font-semibold text-muted-foreground">M3 (15-21)</th>
+                    <th className="text-center py-3 px-2 font-semibold text-muted-foreground">M4 (22-Akhir)</th>
+                    <th className="text-center py-3 px-2 font-semibold text-muted-foreground">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryData.map((row, i) => {
+                    const fmtBlock = (stats: any) => (
+                      <div className="flex justify-center gap-2 text-xs font-medium bg-secondary/50 rounded-md p-2">
+                        <span className="text-emerald-600">H:{stats.hadir}</span>
+                        <span className="text-blue-600">S:{stats.sakit}</span>
+                        <span className="text-amber-600">I:{stats.izin}</span>
+                        <span className="text-red-600">A:{stats.alpa}</span>
+                      </div>
+                    );
+                    return (
+                      <tr key={row.studentId} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="py-3 px-4 text-muted-foreground">{i + 1}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={row.studentName} size="sm" />
+                            <div>
+                              <p className="font-medium text-foreground">{row.studentName}</p>
+                              <p className="text-xs text-muted-foreground">{row.studentNis}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4"><Badge variant="info">{row.className}</Badge></td>
+                        <td className="py-3 px-2">{fmtBlock(row.weeks[1])}</td>
+                        <td className="py-3 px-2">{fmtBlock(row.weeks[2])}</td>
+                        <td className="py-3 px-2">{fmtBlock(row.weeks[3])}</td>
+                        <td className="py-3 px-2">{fmtBlock(row.weeks[4])}</td>
+                        <td className="py-3 px-2">{fmtBlock(row.total)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
           ) : attendances.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <ClipboardCheck size={40} className="opacity-30 mb-3" />
@@ -373,12 +551,12 @@ export default function AttendancesPage() {
         </div>
 
         {/* Footer info total */}
-        {!loading && attendances.length > 0 && (
+        {!loading && (filterMode === "rekap_bulanan" ? summaryData.length > 0 : attendances.length > 0) && (
           <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Menampilkan{" "}
               <span className="font-medium text-foreground">
-                {attendances.length}
+                {filterMode === "rekap_bulanan" ? summaryData.length : attendances.length}
               </span>{" "}
               data
             </p>

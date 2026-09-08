@@ -19,6 +19,10 @@ const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "30d";
 export interface JwtPayload {
   id: number;
   role: string;
+  teacherId?: number;    // Set for users with role 'teacher'
+  studentId?: number;    // Set for users with role 'student'
+  principalId?: number;  // Set for users with role 'kepala_sekolah'
+  guardianId?: number;   // Set for users with role 'guardian'
   tokenType?: "access" | "refresh";
   jti?: string; // JWT ID - unique token identifier for rotation tracking
 }

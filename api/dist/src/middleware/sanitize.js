@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sanitizeBody = void 0;
+const xss_1 = __importDefault(require("xss"));
 /**
  * Fields that should NOT be escaped because they intentionally contain
  * rich text or markup (e.g. learning module descriptions, consultation messages).
@@ -19,22 +23,16 @@ const SKIP_ESCAPE_FIELDS = new Set([
     "learningStrategy",
 ]);
 /**
- * Escape HTML special characters to prevent stored XSS.
+ * Filter HTML to prevent stored XSS using xss library.
+ * This replaces the manual regex escape implementation.
  */
-const escapeHtml = (str) => str.replace(/[&<>"']/g, (c) => {
-    switch (c) {
-        case "&": return "&amp;";
-        case "<": return "&lt;";
-        case ">": return "&gt;";
-        case '"': return "&quot;";
-        case "'": return "&#x27;";
-        default: return c;
-    }
-});
+const filterXss = (str) => {
+    return (0, xss_1.default)(str);
+};
 /**
  * Recursively sanitize string values in an object.
  * - Trims whitespace from all strings
- * - Escapes HTML in strings (except for SKIP_ESCAPE_FIELDS)
+ * - Sanitizes HTML in strings (except for SKIP_ESCAPE_FIELDS)
  */
 const sanitizeValue = (obj, parentKey) => {
     if (typeof obj === "string") {
@@ -42,7 +40,7 @@ const sanitizeValue = (obj, parentKey) => {
         if (parentKey && SKIP_ESCAPE_FIELDS.has(parentKey)) {
             return trimmed;
         }
-        return escapeHtml(trimmed);
+        return filterXss(trimmed);
     }
     if (Array.isArray(obj)) {
         return obj.map((item) => sanitizeValue(item, parentKey));

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import xss from "xss";
 
 /**
  * Fields that should NOT be escaped because they intentionally contain
@@ -19,24 +20,17 @@ const SKIP_ESCAPE_FIELDS = new Set([
 ]);
 
 /**
- * Escape HTML special characters to prevent stored XSS.
+ * Filter HTML to prevent stored XSS using xss library.
+ * This replaces the manual regex escape implementation.
  */
-const escapeHtml = (str: string): string =>
-  str.replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#x27;";
-      default: return c;
-    }
-  });
+const filterXss = (str: string): string => {
+  return xss(str);
+};
 
 /**
  * Recursively sanitize string values in an object.
  * - Trims whitespace from all strings
- * - Escapes HTML in strings (except for SKIP_ESCAPE_FIELDS)
+ * - Sanitizes HTML in strings (except for SKIP_ESCAPE_FIELDS)
  */
 const sanitizeValue = (obj: any, parentKey?: string): any => {
   if (typeof obj === "string") {
@@ -44,7 +38,7 @@ const sanitizeValue = (obj: any, parentKey?: string): any => {
     if (parentKey && SKIP_ESCAPE_FIELDS.has(parentKey)) {
       return trimmed;
     }
-    return escapeHtml(trimmed);
+    return filterXss(trimmed);
   }
   if (Array.isArray(obj)) {
     return obj.map((item) => sanitizeValue(item, parentKey));
